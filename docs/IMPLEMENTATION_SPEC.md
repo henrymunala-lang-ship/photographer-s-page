@@ -143,7 +143,7 @@ Use UUIDs, ISO-8601 timestamps and explicit status enums. Never use row numbers 
 ### Stage 2 work packages
 
 - **2.1 Google Cloud/Sheets setup:** create/identify Cloud project, enable Sheets API, create service account, create private workbook and grant the service account access.
-- **2.2 Workbook structure:** create all 15 worksheets, headers, enums, IDs, timestamps and validation conventions.
+- **2.2 Workbook structure:** create all 22 worksheets, headers, enums, IDs, timestamps and validation conventions.
 - **2.3 Server integration:** server-only Google API client, typed data-access layer, CRUD helpers and connection tests.
 - **2.4 Authentication foundation:** configure provider, login/logout/session, protected routes, identity mapping and controlled super-admin bootstrap.
 - **2.5 Authorization:** photographer ownership checks, admin role checks, approved-status gate and cross-account isolation tests.
@@ -252,3 +252,11 @@ Do not store raw payment credentials, raw PINs, one-time codes, full identity do
 - Photo popularity surfaces eligible images using anti-abuse rules; checkout requires explicit license acceptance; original download is unavailable until payment confirmation.
 - Preview/download protection is described honestly; no claim of universal screenshot blocking.
 - Initial super admin is provisioned only from an explicitly supplied, verified identity; additional admins are invite-only and audited.
+
+
+### 12.10 Two-factor login, preview quality and tiered discovery (owner-confirmed)
+
+- **Photographer authentication:** Every photographer sign-in must require the account identifier/PIN plus a second factor. Preferred initial flow is a time-limited, single-use OTP delivered to the photographer's verified contact channel; a passkey may be offered as a stronger alternative. Do not allow PIN-only login or treat OTP as a substitute for server-side session security. Enforce OTP expiry, one-time use, resend limits, attempt throttling, recovery and session/device revocation. Store only a salted slow hash for the PIN in the authentication system; never store PINs or OTPs in Google Sheets or logs.
+- **Public image previews:** Serve public portfolio/product previews at deliberately reduced pixel dimensions and/or quality, with visible or forensic watermarking where appropriate. Keep original/high-resolution assets private and deliver them only after server-confirmed purchase and license acceptance using a short-lived download entitlement. Generate separate preview derivatives; do not expose original asset URLs or rely on client-side resizing. The preview should remain attractive enough to assess the work while being unsuitable as the purchased full-resolution deliverable. This reduces casual reuse but cannot prevent screenshots, screen recording or re-photography.
+- **Free and premium discovery:** Free photographers remain publicly listed and eligible for customer discovery. Premium membership provides a higher allocation/likelihood of eligible recommendations and access to clearly labelled sponsored/promoted placements, not guaranteed bookings. Premium exposure must be bounded by relevance, location/service fit, quality and safety eligibility; it must not buy ratings, verified-review status or erase organic ranking. Keep organic results distinguishable from sponsored placements and disclose promotion labels. Define a transparent weighting/cap so free members retain meaningful organic discovery opportunities.
+- **Initial super-admin identity (owner supplied):** Use `henrymunala2@gmail.com` as the intended email identity for the initial SUPER_ADMIN bootstrap/invitation. Verify control of that email through the authentication provider before granting the role. This is an identity/configuration input only; do not request or store the mailbox password or OTP, and do not hardcode the address in public client code. Provision through a one-time server-side bootstrap or controlled invitation and record the event in the audit log.
