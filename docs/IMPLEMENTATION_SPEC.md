@@ -44,14 +44,16 @@ Application lifecycle:
 - A pending or rejected applicant cannot enter the photographer dashboard.
 - Acknowledgement email follows submission; administrator receives a notification.
 - Admin reviews details, records verification notes and approves or rejects with a reason.
-- Approval sends an account activation link; the photographer sets their own password through the authentication provider.
+- Approval sends an account activation link. Photographer access uses a memorable username/name identifier plus a short PIN and a second factor (one-time code or passkey); a PIN alone is not accepted for remote sign-in. The PIN is stored only as a salted, slow password hash in the authentication system, never in Sheets. Provide rate limiting, lockout/backoff, recovery and device/session revocation.
 - Rejection sends a reason and next-step guidance.
 - Authentication and membership approval are separate checks: a valid session is insufficient unless the linked photographer status is APPROVED and not suspended.
 - Do not store passwords, session tokens or authentication secrets in Google Sheets.
 
 ## 5. Photographer dashboard
 
-Sections: Overview, My Profile, Gallery, Services, Working Hours, Enquiries, Reviews, Appearance and Settings.
+After approval and account activation, the photographer is taken directly to an onboarding workspace where they can build their public page immediately, including uploading earlier work. They can return through a persistent photographer sign-in page whenever they leave or their session expires.
+
+Sections: Overview, My Profile, Gallery, Services, Working Hours, Enquiries, Reviews, Appearance, Plans & Billing and Settings.
 
 Overview metrics: estimated profile visits, published photo count, profile/photo likes, verified service rating and review count, unread enquiries.
 
@@ -164,3 +166,89 @@ Use UUIDs, ISO-8601 timestamps and explicit status enums. Never use row numbers 
 The current repository is a static single-photographer portfolio prototype (Next.js 14, React 18, TypeScript). It has no implemented authentication, database integration, marketplace directory or multi-tenant dashboard yet. The next coding work must build the Stage 2 foundation rather than treating the existing demo as a completed SaaS.
 
 Before connecting Google Sheets, the product owner must identify the Google account that will own the Cloud project/workbook and create or authorize the required Google Cloud resources. Authentication provider choice and image storage provider must also be confirmed before adding provider-specific integration code. Do not commit credentials, service-account JSON or real customer data.
+
+
+## 12. Additional product requirements — verification, conduct, tiers and photo commerce
+
+### 12.1 Manual verification service level
+
+- On application submission, show **Under verification** and state that manual review normally takes up to 48 hours. Store `submitted_at`, `verification_due_at` (submitted_at + 48 hours), `last_reviewed_at`, status and admin notes.
+- Statuses: `PENDING`, `UNDER_VERIFICATION`, `APPROVED`, `REJECTED`, `MORE_INFORMATION_REQUIRED`, `EXPIRED_REVIEW`. Pending applicants see a clear countdown/expected response date, not a promise of automatic approval.
+- If rejected, show the reason and a **Resubmit verification** route. Preserve prior application history; create a new application/revision rather than overwriting the audit trail.
+- If 48 hours pass without a decision, keep the account under verification (do not auto-approve or auto-reject), show an overdue notice and offer **Request verification update / Raise a verification complaint**. Admin queue flags overdue cases. If the applicant disputes a rejection or believes records were missed, they can request review; admin may reopen, request information or permit resubmission.
+- Send applicant acknowledgement and admin notification on submission; send status-change emails. The 48-hour period is a target for manual review, not an automatic grant of access.
+
+### 12.2 Photographer workspace and historical portfolio
+
+- Once approved and activated, direct the photographer to their dashboard/profile editor immediately. Provide a guided first-publish checklist, profile completion indicator, preview and publish controls.
+- Gallery must support uploading work completed before joining Lens & Light, with title/caption, category, date (optional), location (optional), image alt text, ordering, featured flag and rights/consent confirmation.
+- Every photographer's public profile contains a prominent portfolio/gallery of their work. Support multiple gallery collections/albums and responsive image viewing. The photographer controls draft/published visibility.
+- Require the photographer to confirm they own or have permission to display each uploaded image. Provide a copyright/takedown contact route.
+
+### 12.3 Free membership and premium packages
+
+- Approval grants a **Free/Standard** account with core profile creation, basic gallery, basic services, working hours and enquiry receipt. Do not make basic profile editing or the ability to display prior work dependent on payment.
+- Premium is an optional paid subscription/add-on unlocking clearly described advanced features and enhanced marketplace visibility (for example expanded gallery capacity, advanced analytics, additional presentation options and eligible promoted placement).
+- Publish plan comparison, price, billing period, renewal/cancellation terms, feature limits and payment status before checkout. Never imply that paying guarantees bookings or ratings.
+- Label paid/promoted placement as sponsored/promoted and keep organic verified-rating ranking distinguishable. A premium payment must not buy or alter customer ratings.
+- Keep entitlements server-enforced; subscription expiry/failure downgrades features gracefully without deleting the photographer's content.
+
+### 12.4 Customer reports and photographer conduct
+
+- Public report form includes category and a short description. The requested description limit is **1–9 words**; show a live word counter and reject 10 or more words with a clear prompt. This short summary can be supplemented by structured reason codes and evidence upload/contact follow-up where appropriate.
+- A customer report about a photographer is accepted only if the submitted customer contact details can be matched server-side to an existing booking/enquiry record associated with that photographer. Match conservatively (normalized email/phone plus booking reference where available); do not disclose whether another person's records exist. If no qualifying match exists, return a generic failed-eligibility response and do not create a misconduct strike.
+- Distinguish ordinary conduct complaints from **gross misconduct**. An unreviewed allegation is a report, not a confirmed violation. Admin investigates, records evidence and outcome, and can dismiss, uphold, request more information or escalate.
+- **Ordinary misconduct policy:** up to five upheld ordinary misconduct cases may be recorded. On the sixth upheld case, automatically restrict the account pending administrator review and re-verification. Do not restrict solely because six unreviewed reports were submitted.
+- **Gross misconduct policy:** up to two upheld gross-misconduct cases may be recorded. On the third upheld case, restrict the account pending administrator review and resolution. For credible urgent safety allegations, the super administrator may impose a temporary precautionary restriction before the threshold, with reason, review and appeal.
+- Restrictions pause publishing, new enquiries/booking requests and paid visibility as appropriate, while preserving the photographer's data and giving access to a status/appeal channel. Admin may require identity/profile re-verification before reinstatement.
+- If a complaint is upheld, admin may apply a documented ranking penalty or reduce/discontinue visibility for a defined period. Do not silently erase historical ratings. Any rating exclusion/withholding must be tied to a specific moderation decision, shown accurately in internal audit records, and appealable. Customer ratings remain visible only after admin approval under section 12.5.
+- Maintain separate counts for submitted reports, investigated reports and upheld findings. A single customer cannot manufacture multiple strikes by resubmitting the same incident; deduplicate by incident/booking and investigate coordinated abuse.
+
+### 12.5 Review eligibility and moderation
+
+- A review submission must match an existing booking/enquiry for that photographer and a customer identity/contact already associated with that record. An unverified visitor cannot submit a rating.
+- New reviews enter `PENDING_ADMIN_REVIEW`; they do not affect public rating, ranking or displayed review count until approved. Admin can approve, reject or request clarification and must record a reason.
+- Store booking/enquiry reference, verified customer match, rating, review text, moderation state, moderator and timestamps. Enforce at most one approved review per eligible engagement.
+- Ratings and written reviews must be moderated consistently for authenticity, relevance, abusive content and conflicts of interest; moderation must not be used to suppress fair negative feedback.
+
+### 12.6 High-liked featured photographs and paid downloads
+
+- Photographers may nominate selected portfolio images as **Featured / Available to License** and set sale metadata (title, description, price, license type/terms, territory/use where applicable). The photographer must confirm ownership or authority to license the image.
+- Public visitors can like photographs. The home page may automatically surface high-liked eligible photographs using a transparent, abuse-resistant popularity score, recency window and minimum engagement threshold. Apply rate limits and fraud detection; likes do not automatically grant commercial rights or guarantee placement.
+- A photograph may be purchased only after the buyer sees the price, license/usage terms and payment summary and confirms checkout. Use a payment provider appropriate to the launch market; do not store card details in Sheets.
+- After server-confirmed payment, create an order/receipt and issue a short-lived, single-purpose signed download URL or authenticated download entitlement. Log purchases and downloads; support refunds/disputes and a photographer payout/commission ledger before launch.
+- Protect preview images with visible or forensic watermarks, serve appropriately sized previews, restrict original-file access to the server, use expiring signed URLs and add buyer/order watermarking where practical.
+- **Screenshot limitation:** browsers and websites cannot reliably disable screenshots, screen recording, photography of a display or copying by every device. Do not claim screenshot prevention. Market the protection accurately as discouraging casual copying and securing original-file downloads, not making displayed previews uncopyable.
+- Define marketplace commission, photographer revenue share, tax/receipt handling, refund rules, image license terms and dispute process before enabling paid downloads in production.
+
+### 12.7 Admin account identity and provisioning
+
+- The initial super administrator is the platform owner, provisioned from an explicitly supplied and verified admin email/contact identity using a server-side one-time bootstrap secret or controlled invite. Do not infer the owner's name/email from their ChatGPT account: this application cannot read private account profile details.
+- Store admin identity and role in the private admin registry; protect admin sign-in with MFA/passkey and strong session controls. Allow the super administrator to invite additional admins later with least-privilege roles and audit every role change.
+- Never place an admin email, PIN, bootstrap secret or service-account credential in public client code or source control.
+
+### 12.8 Additional workbook worksheets
+
+Add these worksheets to the initial workbook design:
+- `16_VERIFICATION_EVENTS`: event_id, registration_id, status, due_at, reviewed_at, reviewer_admin_id, decision_reason, resubmission_of, created_at.
+- `17_CONDUCT_CASES`: case_id, photographer_id, reporter_customer_match_id, booking_enquiry_id, category (ORDINARY/GROSS_MISCONDUCT), incident_key, evidence_refs, investigation_status, outcome (UPHELD/DISMISSED/INCONCLUSIVE), admin_id, decision_reason, timestamps.
+- `18_PLANS_SUBSCRIPTIONS`: plan_id, photographer_id, tier, entitlement_state, provider_reference, period_start/end, cancellation_state, timestamps.
+- `19_PHOTO_PRODUCTS`: product_id, photographer_id, photo_id, sale_state, price, currency, license_terms, original_asset_ref, preview_asset_ref.
+- `20_PHOTO_ORDERS`: order_id, product_id, buyer_contact_ref, amount, currency, payment_state, provider_reference, license_snapshot, download_entitlement, timestamps.
+- `21_ADMIN_INVITATIONS`: invitation_id, email, role, invited_by_admin_id, token_hash, expiry, accepted_at, status.
+- `22_PHOTOGRAPHER_ALBUMS`: album_id, photographer_id, title, description, sort_order, publish_state.
+
+Do not store raw payment credentials, raw PINs, one-time codes, full identity documents or original image binaries in Sheets. Store secure references and minimum necessary metadata only.
+
+### 12.9 New acceptance tests
+
+- Application shows the 48-hour verification target; overdue cases remain pending and can raise an update request; rejection supports resubmission with history retained.
+- Approved photographer is directed to an editable dashboard immediately and can upload pre-existing portfolio work before purchasing premium.
+- A photographer cannot access another photographer's gallery, services, enquiries, subscriptions or sales records.
+- PIN sign-in has a second factor, throttling, recovery and secure server-side verification; raw PIN never appears in Sheets or logs.
+- A complaint with no matching booking/enquiry is rejected generically; a matching complaint is queued, but does not create a strike until upheld by admin.
+- Ordinary and gross-misconduct thresholds trigger only on upheld, deduplicated cases: sixth ordinary, third gross. Admin precautionary restriction is separately audited.
+- Review is invisible and excluded from rating/ranking until admin approval and verified engagement matching.
+- Photo popularity surfaces eligible images using anti-abuse rules; checkout requires explicit license acceptance; original download is unavailable until payment confirmation.
+- Preview/download protection is described honestly; no claim of universal screenshot blocking.
+- Initial super admin is provisioned only from an explicitly supplied, verified identity; additional admins are invite-only and audited.
