@@ -24,9 +24,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Owner access could not be verified." }, { status: 401 });
   }
   const response = NextResponse.json({ ok: true });
+  // The same owner session protects /owner pages and /api/owner endpoints.
   response.cookies.set(COOKIE, signature(), {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", path: "/owner", maxAge: MAX_AGE
+    sameSite: "strict", path: "/", maxAge: MAX_AGE
   });
   response.headers.set("Cache-Control", "no-store");
   return response;
@@ -36,7 +37,7 @@ export async function DELETE() {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(COOKIE, "", {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", path: "/owner", maxAge: 0
+    sameSite: "strict", path: "/", maxAge: 0
   });
   response.headers.set("Cache-Control", "no-store");
   return response;
