@@ -41,8 +41,15 @@ function columnName(index: number) {
 
 export async function GET() {
   const cookieStore = await cookies();
-  if (!hasOwnerSession(cookieStore.get(COOKIE)?.value)) {
-    return NextResponse.json({ error: "Owner access required." }, {
+  const sessionCookie = cookieStore.get(COOKIE)?.value;
+  if (!sessionCookie) {
+    return NextResponse.json({ error: "Owner session cookie was not received. Sign in again on this exact Preview hostname.", code: "OWNER_SESSION_MISSING" }, {
+      status: 401,
+      headers: { "Cache-Control": "private, no-store" }
+    });
+  }
+  if (!hasOwnerSession(sessionCookie)) {
+    return NextResponse.json({ error: "Owner session was received but could not be verified. The Preview signing configuration needs attention.", code: "OWNER_SESSION_INVALID" }, {
       status: 401,
       headers: { "Cache-Control": "private, no-store" }
     });
