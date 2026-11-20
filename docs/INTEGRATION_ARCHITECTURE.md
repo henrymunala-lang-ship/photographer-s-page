@@ -28,7 +28,7 @@ The current portfolio must therefore be treated as a prototype, not as the first
 ## 2. Architecture principles
 
 1. **Server is authoritative.** Browser input is untrusted. The server validates every field, identity, role, ownership relationship, state transition, entitlement and payment event.
-2. **No direct browser-to-business-store access.** The private Google workbook is accessed only from server-side code using a dedicated service account.
+2. **No direct browser-to-business-store access.** The private Google workbook is accessed only from server-side code using the owner's delegated Google OAuth authorization, with the narrowest workable file scope.
 3. **Authentication is separate from business records.** PIN hashes, OTPs, sessions, trusted-device secrets, recovery secrets and admin MFA material never enter Google Sheets.
 4. **Repository abstraction.** Business services depend on typed repositories, not directly on Google API calls. A later relational database migration should replace repository adapters, not rewrite product rules or UI.
 5. **Explicit state machines.** Applications, enquiries, reviews, reports, conduct cases, subscriptions, orders, payouts and notifications have named states and server-validated transitions.
@@ -108,7 +108,7 @@ Do not rely on route hiding, client state, opaque IDs or middleware alone as aut
 
 | Capability | Required integration | Current status | Must be ready before |
 |---|---|---|---|
-| Business data | Private Google Sheets + server-only service account | Owner setup pending | Data integration |
+| Business data | Private Google Sheets + server-side Google OAuth refresh token | OAuth client and owner consent pending | Data integration |
 | Identity and sessions | Authentication provider supporting required PIN/OTP and trusted-device policy | Provider not selected | Protected services |
 | Distributed throttling/idempotency | Shared rate-limit/lock store or equivalent reliable service | Provider/design pending | Public forms, OTP, likes, reports, customer reply links |
 | Media | Private object storage + image processing/derivative generation | Provider not selected | Photographer gallery |
@@ -125,7 +125,7 @@ Provider names must not be hardcoded into domain logic. Each integration must ha
 
 ### 5.1 Workbook and access
 
-The owner confirmed `henrymunala2@gmail.com` as the Google account for the initial Cloud project and workbook. The live native Google Sheet, Cloud project, API enablement, service account and workbook sharing have not yet been verified.
+The owner confirmed `henrymunala2@gmail.com` as the Google account for the Cloud project and workbook. The spreadsheet ID is configured in Vercel Preview on `integration-foundation`. The Google OAuth client, API enablement, owner consent, file-specific authorization and live read test are still pending.
 
 The initial business workbook retains the 22 approved tabs:
 1. `01_REGISTRATIONS`
@@ -158,7 +158,7 @@ No existing tab is to be removed, merged or repurposed without explicit agreemen
 Create typed repository interfaces for registrations, photographers, admins, gallery, albums, services, working hours, enquiries, messages, likes, profile views, reviews, reports, settings, audit events, service areas, verification events, conduct cases, subscriptions, photo products, photo orders and admin invitations.
 
 The Google Sheets adapter must:
-- Use a server-only service-account client. Fail fast if required configuration is absent; never fall back to a public spreadsheet or browser-side API.
+- Use the server-only Google OAuth client in `lib/integrations/google-sheets/client.ts`. Fail fast if required configuration is absent; never fall back to a public spreadsheet or browser-side API. OAuth client ID, client secret and refresh token are Vercel Sensitive variables, Preview-only during development.
 - Map rows to typed domain records using named header mappings, not assumed column positions alone.
 - Use UUIDs as record IDs; never expose sheet row numbers as public IDs.
 - Validate required headers at startup/health-check and report missing/duplicate headers without exposing secrets.
@@ -604,3 +604,15 @@ We should not call the backend ready until:
 - No critical cross-tenant, IDOR, secret-exposure or privacy defect remains.
 - End-to-end API journeys pass with synthetic data.
 - API contracts and all UI states are documented so frontend work can proceed without inventing business rules.
+
+
+## 12.14 Google OAuth integration implementation update
+
+The first server-side integration slice is now committed on `integration-foundation`:
+- `lib/integrations/google-sheets/client.ts`: OAuth refresh-token exchange, short-lived access-token caching, Google Sheets API request wrapper, bounded retries, metadata/read/append/update methods.
+- `scripts/verify-google-sheets.mjs`: read-only verification of workbook metadata and all 22 approved worksheet names.
+- `.env.example`: names-only environment-variable template.
+
+The following Vercel configuration is already present: `GOOGLE_SHEETS_SPREADSHEET_ID`, Preview target, branch `integration-foundation`. The OAuth client ID, client secret and refresh token are not present and must be entered by the owner directly in Vercel as Sensitive Preview variables. No OAuth secret is stored in GitHub.
+
+**Important:** the OAuth app should use the narrow `drive.file` scope and explicitly authorize the selected workbook. This avoids requesting the broad Sheets scope across every spreadsheet in the owner's account. A dedicated owner-only setup/file-selection step is still required. Do not report the integration as connected until the read-only verification succeeds.
