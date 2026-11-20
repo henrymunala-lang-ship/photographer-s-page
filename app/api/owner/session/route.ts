@@ -41,4 +41,3 @@ export async function DELETE() {
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
-\n
