@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     client_id: required("GOOGLE_OAUTH_CLIENT_ID"),
     redirect_uri: required("GOOGLE_OAUTH_REDIRECT_URI"),
     response_type: "code",
-    scope: "openid email profile https://www.googleapis.com/auth/drive.file",
+    scope: "openid email profile https://www.googleapis.com/auth/spreadsheets",
     access_type: "offline",
     prompt: "consent select_account",
     include_granted_scopes: "true",
