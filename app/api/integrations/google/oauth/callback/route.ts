@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     return response;
   };
 
-  if (!verifyOAuthState(stateCookie, returnedState)) {
+  const codeVerifier = verifyOAuthState(stateCookie, returnedState);\n  if (!codeVerifier) {
     return clearCookie(htmlPage("Authorization could not be verified", "<p>The security check failed or expired. Restart the owner setup from the Lens &amp; Light setup page.</p>", 400));
   }
   if (url.searchParams.has("error") || !code) {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       client_id: process.env.GOOGLE_OAUTH_CLIENT_ID ?? "",
       client_secret: process.env.GOOGLE_OAUTH_CLIENT_SECRET ?? "",
       redirect_uri: redirectUri,
-      grant_type: "authorization_code"
+      grant_type: "authorization_code",\n      code_verifier: codeVerifier
     }),
     cache: "no-store"
   });
