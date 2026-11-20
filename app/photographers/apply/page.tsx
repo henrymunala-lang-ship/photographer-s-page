@@ -5,7 +5,8 @@ import { ArrowLeft, ArrowRight, Camera, CheckCircle2 } from "lucide-react";
 
 const styles=["Weddings","Portraits","Commercial","Events","Fashion & editorial","Family","Product","Travel & lifestyle"];
 export default function PhotographerApplyPage(){
-  const [submitted,setSubmitted]=useState(false);\n  const [categoryError,setCategoryError]=useState(false);
+  const [submitted,setSubmitted]=useState(false);
+  const [categoryError,setCategoryError]=useState(false);
   const [selected,setSelected]=useState<string[]>([]);
   function toggle(value:string){setSelected(current=>current.includes(value)?current.filter(x=>x!==value):[...current,value]);}
   return <main className="directory-page apply-page">
