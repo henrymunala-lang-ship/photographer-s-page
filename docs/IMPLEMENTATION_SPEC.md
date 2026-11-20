@@ -114,6 +114,13 @@ Recommended private workbook: `LENS_LIGHT_DATABASE`.
 | `13_SETTINGS` | setting_id, photographer_id, theme, preferences, publish settings |
 | `14_AUDIT_LOG` | audit_id, actor_admin_id/photographer_id, action, target_type, target_id, metadata, created_at |
 | `15_PHOTOGRAPHER_SERVICE_AREAS` | service_area_id, photographer_id, place_name, county/region, country, optional coordinates, active |
+| `16_VERIFICATION_EVENTS` | application verification status history, due/review timestamps, reviewer and decision reason |
+| `17_CONDUCT_CASES` | investigated misconduct cases, incident deduplication key, evidence references, upheld/dismissed outcome and decision audit |
+| `18_PLANS_SUBSCRIPTIONS` | photographer plan, tier, entitlement state, provider reference, billing period and cancellation state |
+| `19_PHOTO_PRODUCTS` | licensable photo product, price, currency, license terms and private original/preview asset references |
+| `20_PHOTO_ORDERS` | buyer/order reference, amount, payment state, license snapshot and download entitlement |
+| `21_ADMIN_INVITATIONS` | invitee email, role, inviter, hashed invitation token, expiry and acceptance state |
+| `22_PHOTOGRAPHER_ALBUMS` | photographer-owned album metadata, order and publish state |
 
 Use UUIDs, ISO-8601 timestamps and explicit status enums. Never use row numbers as identifiers. Keep registrations separate from approved photographer accounts. Store service areas as separate records, not a comma-delimited cell. Likes use a target type plus target ID so profile and photo likes can be enforced independently. Reviews must reference an eligible verified engagement. The workbook remains private and is never shared publicly.
 
@@ -165,7 +172,7 @@ Use UUIDs, ISO-8601 timestamps and explicit status enums. Never use row numbers 
 
 The current repository is a static single-photographer portfolio prototype (Next.js 14, React 18, TypeScript). It has no implemented authentication, database integration, marketplace directory or multi-tenant dashboard yet. The next coding work must build the Stage 2 foundation rather than treating the existing demo as a completed SaaS.
 
-Before connecting Google Sheets, the product owner must identify the Google account that will own the Cloud project/workbook and create or authorize the required Google Cloud resources. Authentication provider choice and image storage provider must also be confirmed before adding provider-specific integration code. Do not commit credentials, service-account JSON or real customer data.
+Before connecting Google Sheets, the owner must complete the Google Cloud and private workbook setup described in `docs/GOOGLE_SHEETS_SETUP.md`. The owner has confirmed `henrymunala2@gmail.com` as the Google account for the initial Cloud project and workbook; this does not mean the live workbook or service account already exists. Authentication provider and image storage provider must still be selected before provider-specific integration code is added. Do not commit credentials, service-account JSON or real customer data.
 
 
 ## 12. Additional product requirements — verification, conduct, tiers and photo commerce
@@ -200,7 +207,7 @@ Before connecting Google Sheets, the product owner must identify the Google acco
 - Distinguish ordinary conduct complaints from **gross misconduct**. An unreviewed allegation is a report, not a confirmed violation. Admin investigates, records evidence and outcome, and can dismiss, uphold, request more information or escalate.
 - **Ordinary misconduct policy:** up to five upheld ordinary misconduct cases may be recorded. On the sixth upheld case, automatically restrict the account pending administrator review and re-verification. Do not restrict solely because six unreviewed reports were submitted.
 - **Gross misconduct policy:** up to two upheld gross-misconduct cases may be recorded. On the third upheld case, restrict the account pending administrator review and resolution. For credible urgent safety allegations, the super administrator may impose a temporary precautionary restriction before the threshold, with reason, review and appeal.
-- Restrictions pause publishing, new enquiries/booking requests and paid visibility as appropriate, while preserving the photographer's data and giving access to a status/appeal channel. Admin may require identity/profile re-verification before reinstatement.
+- During a temporary precautionary restriction, pause only the activities reasonably necessary to manage the urgent risk (such as publishing, new enquiries/booking requests or paid visibility); preserve existing data and provide access to account status, customer communication history where safe, and an appeal channel. Lift the restriction promptly when the issue is resolved, and no later than 48 hours unless a separate formal decision is made. Admin may require identity/profile re-verification under that documented decision.
 - If a complaint is upheld, admin may apply a documented ranking penalty or reduce/discontinue visibility for a defined period. Do not silently erase historical ratings. Any rating exclusion/withholding must be tied to a specific moderation decision, shown accurately in internal audit records, and appealable. Customer ratings remain visible only after admin approval under section 12.5.
 - Maintain separate counts for submitted reports, investigated reports and upheld findings. A single customer cannot manufacture multiple strikes by resubmitting the same incident; deduplicate by incident/booking and investigate coordinated abuse.
 
@@ -288,3 +295,62 @@ Do not store raw payment credentials, raw PINs, one-time codes, full identity do
 - Designated Google account owner for the initial Lens & Light Google Cloud project and private database workbook: `henrymunala2@gmail.com` (owner account confirmed by the user).
 - The workbook must remain private. The deployed application accesses it server-side through a dedicated Google service account shared only to the workbook with the minimum required permissions.
 - Never request or store the owner's Google password or OTP. Never expose service-account credentials to browser code, public repository files, logs or the workbook.
+
+
+### 12.13 Stage 9 — commercialisation and launch (owner-approved scope)
+
+Stage 9 is approved as the implementation scope. Approval of this scope is not authorization to activate live payments or deploy to Production; provider accounts, commercial terms, legal readiness and a separate Production go-ahead remain required.
+
+**Photographer subscriptions and entitlements**
+- Offer Free and Premium plans. Free retains meaningful public discoverability and core profile, gallery, services, working hours and enquiry functionality.
+- Define Premium features and limits clearly, including any expanded gallery capacity, advanced analytics, presentation features and eligible promoted placement.
+- Before checkout, disclose price, currency, billing period, renewal behavior, feature limits, cancellation method/effective date, failed-payment handling and any grace period.
+- Enforce entitlements server-side. Track subscription lifecycle events (pending, active, renewal due, past due, grace, cancelled, expired/refunded as applicable). On expiry or failed renewal, downgrade gracefully without deleting photographer content.
+- Provide self-service billing status, invoices/receipts where supported, cancellation and support routes. Never imply that Premium guarantees enquiries, bookings, ratings or revenue.
+
+**Sponsored discovery**
+- Keep organic discovery available to Free and Premium photographers.
+- Clearly label every paid placement as Sponsored or Promoted and visually distinguish it from organic ranking.
+- Apply eligibility checks for relevance, location/service fit, profile quality and safety status; set transparent exposure caps/weighting so paid placement cannot overwhelm organic discovery.
+- Payment must not buy ratings, verified-review status or moderation outcomes. Record promotion campaign, spend/period, placement and delivery metrics for audit.
+
+**Photo licensing and checkout**
+- Before purchase, show the image, photographer/seller identity, price/currency, exact license scope (permitted use, territory, duration, media/channel, exclusivity if any), restrictions, refund/dispute terms and payment summary. Require affirmative acceptance and preserve a versioned license snapshot with the order.
+- Keep original assets private. Only a server-confirmed payment and accepted license may create an order and short-lived download entitlement. Log order, receipt, download issue/use, refunds and disputes. Prevent order-ID or URL guessing from granting access.
+- Provide buyers with order history and a way to obtain receipts/support. Provide photographers with sales/order history and transparent earnings statements.
+
+**Marketplace money flow**
+- Before live commerce, define the platform commission, photographer share, payout eligibility/timing/minimums, reserve/hold policy where justified, refund allocation, chargeback responsibility, currency conversion and reconciliation rules.
+- Maintain an auditable ledger of gross amount, fees, tax, commission, photographer payable, adjustments, refunds, chargebacks and payouts. Do not treat a payment-provider dashboard balance as the sole accounting record.
+- Reconcile provider transactions, internal orders, subscription events, refunds and payouts; flag unmatched/failed events for administrator action. Use idempotency keys and signed provider webhooks; verify webhook authenticity and handle retries/out-of-order events safely.
+- Do not store card details or payment secrets in Google Sheets. Use a suitable payment provider for the launch market and its hosted/secure payment flow.
+
+**Tax, legal and customer protection**
+- Confirm applicable tax treatment, invoice/receipt requirements, seller identity and marketplace reporting obligations before production payments.
+- Publish and obtain acceptance of platform terms, privacy notice, photographer/seller terms, buyer license terms, refund/cancellation policy, acceptable-use rules and copyright/takedown process.
+- Establish a clear customer support and dispute escalation process, including payment-provider disputes and photographer/buyer complaints.
+- For a Kenya-first launch, obtain an appropriate review of applicable Kenya data-protection, consumer, tax and payment requirements before launch; do not assume a generic template alone is sufficient.
+
+**Production operations and launch gates**
+- Configure production secrets separately from Preview, least-privilege access, MFA/passkeys for administrators, secure domains and HTTPS, monitoring/alerts, error tracking, email delivery monitoring, upload/payment failure visibility and incident response contacts.
+- Verify backup schedules and complete a restore exercise. Document rollback, data recovery, payment reconciliation and support procedures.
+- Run end-to-end tests for signup/verification, trusted-device authentication, photographer ownership, public discovery, enquiry/customer replies, complaint/review moderation, subscription checkout/renewal/cancellation, promoted placement labels, photo purchase/license acceptance/download, refunds, disputes and payout reconciliation.
+- Complete accessibility, responsive mobile/desktop, performance, SEO, privacy and security checks. Test loading, empty, validation, error, success and recovery states—not only the happy path.
+- Keep all deployment work on Vercel Preview until the owner separately authorizes Production.
+
+**Commercial decisions required before enabling live transactions**
+- Payment provider and supported launch currencies.
+- Free/Premium prices, billing periods and exact entitlement limits.
+- Marketplace commission and photographer payout terms.
+- Tax/invoice treatment and payout verification requirements.
+- Photo license templates, refund rules and dispute allocation.
+- Production domain, support contact and legal document approval.
+
+**Stage 9 acceptance criteria**
+- Subscription and entitlement state is server-authoritative, auditable and resilient to duplicate/out-of-order webhooks.
+- Free photographers remain discoverable; sponsored placement is labelled, bounded and never represented as organic ranking.
+- A buyer cannot download an original before verified payment and affirmative acceptance of the displayed license; download entitlements expire and are scoped to the order.
+- Orders, subscription charges, commissions, refunds, disputes and payouts reconcile to provider events and internal ledger entries.
+- Buyers and photographers can access accurate transaction records and support routes.
+- Tax/legal/privacy/security/operational launch gates are reviewed and signed off before Production.
+- Backup restoration, monitoring, rollback and end-to-end tests pass; no critical security or privacy defects remain.
