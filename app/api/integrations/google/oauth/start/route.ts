@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { createOAuthState, googleOAuthStateCookie } from "@/lib/integrations/google-oauth/state";
 
 export const runtime = "nodejs";
@@ -18,22 +19,22 @@ export async function POST(request: NextRequest) {
   if (!configuredKey || configuredKey.length < 32 || submittedKey.length !== configuredKey.length) {
     return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
   }
-
-  const { timingSafeEqual } = await import("node:crypto");
-  const valid = timingSafeEqual(Buffer.from(submittedKey), Buffer.from(configuredKey));
-  if (!valid) return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
+  if (!timingSafeEqual(Buffer.from(submittedKey), Buffer.from(configuredKey))) {
+    return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
+  }
 
   const { state, challenge, cookieValue } = createOAuthState();
-  const redirectUri = required("GOOGLE_OAUTH_REDIRECT_URI");
   const params = new URLSearchParams({
     client_id: required("GOOGLE_OAUTH_CLIENT_ID"),
-    redirect_uri: redirectUri,
+    redirect_uri: required("GOOGLE_OAUTH_REDIRECT_URI"),
     response_type: "code",
     scope: "openid email profile https://www.googleapis.com/auth/drive.file",
     access_type: "offline",
     prompt: "consent select_account",
     include_granted_scopes: "true",
-    state
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256"
   });
 
   const response = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`, 303);
