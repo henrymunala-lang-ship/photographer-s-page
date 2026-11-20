@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     return clearCookie(htmlPage("Google authorization was not completed", "<p>No workbook connection was created. You can close this page and restart when ready.</p>", 400));
   }
 
-  const redirectUri = new URL("/api/integrations/google/oauth/callback", request.url).toString();
+  const redirectUri = process.env.GOOGLE_OAUTH_REDIRECT_URI?.trim() ?? "";\n  if (!redirectUri) return clearCookie(htmlPage("Setup is incomplete", "<p>The fixed OAuth redirect URI is not configured in the Preview environment.</p>", 503));
   const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     return clearCookie(htmlPage("Google account not authorized", "<p>The verified Google account does not match the configured workbook owner. No refresh token was retained. Revoke the app grant in Google Account security if this was unexpected.</p>", 403));
   }
 
-  if (!token.refresh_token) {
+  if (!(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/drive.file")) {\n    return clearCookie(htmlPage("Required file permission was not granted", "<p>The grant does not include the narrow Drive file scope. No refresh token was retained.</p>", 403));\n  }\n\n  if (!token.refresh_token) {
     return clearCookie(htmlPage("A refresh token was not issued", "<p>Google did not return an offline refresh token. Revoke the existing grant for this OAuth client, then restart authorization with consent. No durable connection has been created.</p>", 400));
   }
 
