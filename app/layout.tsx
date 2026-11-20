@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./marketplace.css";
 
 export const metadata: Metadata = {
   title: "Lens & Light — Photography that tells your story",
