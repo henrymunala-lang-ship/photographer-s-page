@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "ll_google_oauth_state";
 const MAX_AGE_SECONDS = 600;
@@ -21,10 +21,10 @@ export function createOAuthState(): { state: string; cookieValue: string } {
   return { state, cookieValue: `${payload}.${signature}` };
 }
 
-export function verifyOAuthState(cookieValue: string | undefined, returnedState: string): boolean {
-  if (!cookieValue || !returnedState) return false;
+export function verifyOAuthState(cookieValue: string | undefined, returnedState: string): string | null {
+  if (!cookieValue || !returnedState) return null;
   const [payload, signature, extra] = cookieValue.split(".");
-  if (!payload || !signature || extra) return false;
+  if (!payload || !signature || extra) return null;
 
   const expected = createHmac("sha256", secret()).update(payload).digest();
   let supplied: Buffer;
