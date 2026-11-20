@@ -29,5 +29,9 @@ The current page uses demonstration copy, stock photography and placeholder cont
 ## Deploy
 Import this repository into Vercel, use the Next.js preset, and deploy. No environment variables are required for this static portfolio demo.
 
-## Next product milestone
-Connect a photographer dashboard and Supabase so each photographer can manage their own profile, portfolio images, services, testimonials and enquiries. Add Supabase Row Level Security before enabling multi-photographer accounts.
+## Product direction
+
+Lens & Light is being developed as a multi-photographer discovery and hiring marketplace with photographer portfolio SaaS, verified reviews, customer enquiries, trust and safety moderation, and optional commercial features. The current application remains a static single-photographer prototype; marketplace, authentication, multi-tenant dashboards, payments and Google Sheets integration are not yet implemented.
+
+## Next implementation milestone
+Stage 2: establish the private Google Sheets data foundation, authentication, secure sessions and admin authorization. The approved initial business workbook contains **22 worksheets**. See `docs/IMPLEMENTATION_SPEC.md` and `docs/GOOGLE_SHEETS_SETUP.md` for the agreed scope and owner setup prerequisites.
