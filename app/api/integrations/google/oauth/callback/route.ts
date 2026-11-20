@@ -91,8 +91,8 @@ export async function GET(request: NextRequest) {
     return clearCookie(htmlPage("Google account not authorized", "<p>The verified Google account does not match the configured workbook owner. No refresh token was retained. Revoke the app grant in Google Account security if this was unexpected.</p>", 403));
   }
 
-  if (!(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/drive.file")) {
-    return clearCookie(htmlPage("Required file permission was not granted", "<p>The grant does not include the narrow Drive file scope. No refresh token was retained.</p>", 403));
+  if (!(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/spreadsheets")) {
+    return clearCookie(htmlPage("Required file permission was not granted", "<p>The grant does not include the Google Sheets read/write scope required for the owner-managed workbook. No refresh token was retained.</p>", 403));
   }
   if (!token.refresh_token) {
     return clearCookie(htmlPage("A refresh token was not issued", "<p>Google did not return an offline refresh token. Revoke the existing grant for this OAuth client, then restart authorization with consent. No durable connection has been created.</p>", 400));
