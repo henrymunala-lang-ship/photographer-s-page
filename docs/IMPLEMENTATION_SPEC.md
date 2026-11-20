@@ -271,3 +271,13 @@ Do not store raw payment credentials, raw PINs, one-time codes, full identity do
 - Treat a cleared browser profile, deleted cookies, private/incognito session, materially changed device/browser signals, expired session or elevated-risk login as untrusted and require OTP again. Do not rely on IP address alone as device identity, and do not promise perfect physical-device recognition.
 - A remembered device reduces repeat OTP prompts; it does not bypass server-side account approval/suspension checks or re-authentication for sensitive actions (e.g. changing email/phone/PIN, payout/payment settings, or account recovery).
 - Explain the trade-off to photographers: only mark a personally controlled device as trusted; do not trust public/shared computers. Provide **Remember this device** as an explicit opt-in and a way to turn it off.
+
+
+### 12.11 Trusted-device sessions (owner-confirmed)
+
+- First sign-in on a device requires account identifier + PIN + OTP to a verified contact channel (or approved passkey step-up).
+- After successful verification, register that device as trusted and issue a revocable, secure, persistent session using an HttpOnly, Secure, SameSite cookie. Never store PINs, OTPs or bearer session tokens in localStorage, Sheets or client-readable storage.
+- On the same device, a valid unexpired trusted session should restore the photographer's signed-in state without prompting for OTP on every visit. Apply idle/absolute expiry and risk-based step-up verification.
+- A new/unrecognized device must complete OTP verification before it is trusted. Do not rely solely on user-agent strings; use a random device-bound credential stored securely and a server-side hashed/revocable device record.
+- Provide account settings to view/revoke trusted devices and sign out individual/all sessions. Revoke sessions on PIN reset, account recovery, suspension or suspected compromise. Cleared cookies, expired sessions, private browsing or browser/device changes may require fresh OTP.
+- Admin accounts use stronger MFA/passkey requirements and must not inherit photographer trusted-device relaxations without a separate admin policy.
