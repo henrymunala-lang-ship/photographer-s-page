@@ -281,3 +281,10 @@ Do not store raw payment credentials, raw PINs, one-time codes, full identity do
 - A new/unrecognized device must complete OTP verification before it is trusted. Do not rely solely on user-agent strings; use a random device-bound credential stored securely and a server-side hashed/revocable device record.
 - Provide account settings to view/revoke trusted devices and sign out individual/all sessions. Revoke sessions on PIN reset, account recovery, suspension or suspected compromise. Cleared cookies, expired sessions, private browsing or browser/device changes may require fresh OTP.
 - Admin accounts use stronger MFA/passkey requirements and must not inherit photographer trusted-device relaxations without a separate admin policy.
+
+
+### 12.12 Google Sheets ownership and access
+
+- Designated Google account owner for the initial Lens & Light Google Cloud project and private database workbook: `henrymunala2@gmail.com` (owner account confirmed by the user).
+- The workbook must remain private. The deployed application accesses it server-side through a dedicated Google service account shared only to the workbook with the minimum required permissions.
+- Never request or store the owner's Google password or OTP. Never expose service-account credentials to browser code, public repository files, logs or the workbook.
