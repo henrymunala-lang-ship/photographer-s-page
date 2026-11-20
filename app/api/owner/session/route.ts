@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
     sameSite: "strict", path: "/", maxAge: MAX_AGE
   });
+  // Remove the legacy cookie previously scoped only to /owner.
+  response.cookies.set(COOKIE, "", {
+    httpOnly: true, secure: process.env.NODE_ENV === "production",
+    sameSite: "strict", path: "/owner", maxAge: 0
+  });
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
@@ -38,6 +43,11 @@ export async function DELETE() {
   response.cookies.set(COOKIE, "", {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
     sameSite: "strict", path: "/", maxAge: 0
+  });
+  // Also clear the legacy path-scoped cookie so it cannot mask sign-out.
+  response.cookies.set(COOKIE, "", {
+    httpOnly: true, secure: process.env.NODE_ENV === "production",
+    sameSite: "strict", path: "/owner", maxAge: 0
   });
   response.headers.set("Cache-Control", "no-store");
   return response;
