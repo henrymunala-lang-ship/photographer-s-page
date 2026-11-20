@@ -6,6 +6,16 @@ export const dynamic = "force-dynamic";
 const COOKIE = "ll_owner_preview_session";
 const MAX_AGE = 8 * 60 * 60;
 
+function expireLegacyCookie(response: NextResponse) {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  // Append a separate Set-Cookie header: NextResponse.cookies is keyed by cookie
+  // name, so setting the same name twice can replace the new root-path cookie.
+  response.headers.append(
+    "Set-Cookie",
+    `${COOKIE}=; Path=/owner; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Strict${secure}`
+  );
+}
+
 function signature(): string {
   const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
   if (secret.length < 32) throw new Error("Owner session signing is not configured.");
@@ -29,11 +39,8 @@ export async function POST(request: NextRequest) {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
     sameSite: "strict", path: "/", maxAge: MAX_AGE
   });
-  // Remove the legacy cookie previously scoped only to /owner.
-  response.cookies.set(COOKIE, "", {
-    httpOnly: true, secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", path: "/owner", maxAge: 0
-  });
+  // Remove the legacy path-scoped cookie without replacing the new cookie.
+  expireLegacyCookie(response);
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
@@ -45,10 +52,7 @@ export async function DELETE() {
     sameSite: "strict", path: "/", maxAge: 0
   });
   // Also clear the legacy path-scoped cookie so it cannot mask sign-out.
-  response.cookies.set(COOKIE, "", {
-    httpOnly: true, secure: process.env.NODE_ENV === "production",
-    sameSite: "strict", path: "/owner", maxAge: 0
-  });
+  expireLegacyCookie(response);
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
