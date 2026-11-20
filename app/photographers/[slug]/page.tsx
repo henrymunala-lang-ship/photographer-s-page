@@ -42,7 +42,7 @@ export default function PublicPhotographerProfile(){
   const [platform,setPlatform]=useState<Status|null>(null);
   const [liked,setLiked]=useState(false);
   const [enquiryPreview,setEnquiryPreview]=useState(false);
-  const [activeImage,setActiveImage]=useState(0);
+  const [activeImage,setActiveImage]=useState(-1);
   const gallery=useMemo(()=>profile?.gallery??[],[profile]);
   useEffect(()=>{let active=true;fetch("/api/public/platform-status",{cache:"no-store"}).then(r=>r.json()).then(data=>{if(active)setPlatform(data);}).catch(()=>{if(active)setPlatform({dataSource:"unavailable",workbook:"verification_failed",verifiedTabs:0,expectedTabs:22,message:"Platform status could not be checked."});});return()=>{active=false;};},[]);
   if(!profile)return <main className="directory-page"><section className="directory-intro"><Link href="/photographers" className="back-link"><ArrowLeft size={15}/> BACK TO DIRECTORY</Link><h1>Profile not found.</h1><p>This preview profile may have moved. Explore the directory to view available examples.</p><Link className="button-dark" href="/photographers">Explore photographers <ArrowRight size={16}/></Link></section></main>;
