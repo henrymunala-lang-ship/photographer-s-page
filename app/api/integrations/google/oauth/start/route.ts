@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const valid = timingSafeEqual(Buffer.from(submittedKey), Buffer.from(configuredKey));
   if (!valid) return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
 
-  const { state, cookieValue } = createOAuthState();
+  const { state, challenge, cookieValue } = createOAuthState();
   const redirectUri = required("GOOGLE_OAUTH_REDIRECT_URI");
   const params = new URLSearchParams({
     client_id: required("GOOGLE_OAUTH_CLIENT_ID"),
