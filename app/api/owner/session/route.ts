@@ -41,13 +41,4 @@ export async function DELETE() {
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
-
-export function ownerSessionCookieName() { return COOKIE; }
-export function verifyOwnerSession(value?: string) {
-  if (!value) return false;
-  try {
-    const expected = Buffer.from(signature());
-    const supplied = Buffer.from(value);
-    return expected.length === supplied.length && timingSafeEqual(expected, supplied);
-  } catch { return false; }
-}
+\n
