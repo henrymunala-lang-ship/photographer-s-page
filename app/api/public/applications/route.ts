@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   const introduction = text(payload.introduction, 2000);
   const serviceAreas = text(payload.serviceAreas, 800);
   const categories = Array.isArray(payload.categories)
-    ? [...new Set(payload.categories.filter((item): item is string => typeof item === "string").map(item => item.trim()))]
+    ? Array.from(new Set(payload.categories.filter((item): item is string => typeof item === "string").map(item => item.trim())))
     : [];
   const websiteUrl = safeHttpsUrl(payload.websiteUrl);
   const portfolioUrl = safeHttpsUrl(payload.portfolioUrl);
