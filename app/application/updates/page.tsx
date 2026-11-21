@@ -115,6 +115,17 @@ export default function ApplicationUpdatesPage() {
                     <p style={{ margin: "0 0 7px", fontSize: 10, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: "#777064" }}>{message.sender_type === "applicant" ? "You" : message.sender_type === "admin" ? "Lens & Light team" : "Application update"}</p>
                     <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, margin: 0 }}>{message.body}</p>
                     <p style={{ fontSize: 10, color: "#8a8479", margin: "9px 0 0" }}>{new Date(message.created_at).toLocaleString()}</p>
+                    {message.sender_type === "applicant" && (
+                      <p style={{ fontSize: 10, color: message.delivery_state === "sent" ? "#52704f" : "#8a6b45", margin: "5px 0 0" }}>
+                        {message.delivery_state === "sent"
+                          ? "Owner email accepted by notification provider"
+                          : message.delivery_state === "failed"
+                            ? "Owner email notification failed — your reply is still saved"
+                            : message.delivery_state === "pending"
+                              ? "Owner email notification pending — your reply is still saved"
+                              : "Email notification status unavailable"}
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>
