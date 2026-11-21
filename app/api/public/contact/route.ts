@@ -4,8 +4,8 @@ import { readValues } from "@/lib/integrations/google-sheets/client";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const keys = ["contact_email","contact_phone","contact_whatsapp","contact_website","contact_address","contact_instagram","contact_facebook","contact_tiktok","contact_hours","contact_visibility"] as const;
-const empty = { email:"", phone:"", whatsapp:"", website:"", address:"", instagram:"", facebook:"", tiktok:"", hours:"", visibility:"hidden" };
+const keys = ["contact_email","contact_phone","contact_phone_secondary","contact_whatsapp","contact_website","contact_address","contact_instagram","contact_facebook","contact_tiktok","contact_hours","contact_visibility"] as const;
+const empty = { email:"", phone:"", phoneSecondary:"", whatsapp:"", website:"", address:"", instagram:"", facebook:"", tiktok:"", hours:"", visibility:"hidden" };
 const noStore = { "Cache-Control":"public, max-age=60, stale-while-revalidate=300" };
 
 export async function GET() {
@@ -23,7 +23,7 @@ export async function GET() {
     const published = values.contact_visibility === "public";
     if (!published) return NextResponse.json({ published:false, contact:empty }, { headers:noStore });
     return NextResponse.json({ published:true, contact:{
-      email:values.contact_email ?? "", phone:values.contact_phone ?? "", whatsapp:values.contact_whatsapp ?? "",
+      email:values.contact_email ?? "", phone:values.contact_phone ?? "", phoneSecondary:values.contact_phone_secondary ?? "", whatsapp:values.contact_whatsapp ?? "",
       website:values.contact_website ?? "", address:values.contact_address ?? "", instagram:values.contact_instagram ?? "",
       facebook:values.contact_facebook ?? "", tiktok:values.contact_tiktok ?? "", hours:values.contact_hours ?? "", visibility:"public"
     } }, { headers:noStore });
