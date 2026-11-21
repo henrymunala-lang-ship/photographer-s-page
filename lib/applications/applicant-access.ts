@@ -52,9 +52,9 @@ export async function createApplicantAccessToken(registrationId: string) {
   const rawToken = randomBytes(32).toString("base64url");
   const tokenId = randomUUID();
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
-  await sql\`INSERT INTO applicant_access_tokens
+  await sql`INSERT INTO applicant_access_tokens
     (token_id, registration_id, token_hash, expires_at)
-    VALUES (\${tokenId}, \${registrationId}, \${digest(rawToken)}, \${expiresAt})\`;
+    VALUES (${tokenId}, ${registrationId}, ${digest(rawToken)}, ${expiresAt})`;
   return {
     token: rawToken,
     expiresAt,
@@ -65,12 +65,12 @@ export async function createApplicantAccessToken(registrationId: string) {
 export async function exchangeApplicantAccessToken(rawToken: string) {
   if (rawToken.length < 32 || rawToken.length > 256) return null;
   const sql = getDatabase();
-  const rows = await sql\`UPDATE applicant_access_tokens
+  const rows = await sql`UPDATE applicant_access_tokens
     SET last_used_at = now()
-    WHERE token_hash = \${digest(rawToken)}
+    WHERE token_hash = ${digest(rawToken)}
       AND revoked_at IS NULL
       AND expires_at > now()
-    RETURNING token_id, registration_id\`;
+    RETURNING token_id, registration_id`;
   if (!rows.length) return null;
   const session: ApplicantSession = {
     tokenId: String(rows[0].token_id),
@@ -86,13 +86,13 @@ export async function getApplicantSession(request: NextRequest) {
   const session = decodeSession(raw);
   if (!session) return null;
   const sql = getDatabase();
-  const rows = await sql\`SELECT token_id
+  const rows = await sql`SELECT token_id
     FROM applicant_access_tokens
-    WHERE token_id = \${session.tokenId}
-      AND registration_id = \${session.registrationId}
+    WHERE token_id = ${session.tokenId}
+      AND registration_id = ${session.registrationId}
       AND revoked_at IS NULL
       AND expires_at > now()
-    LIMIT 1\`;
+    LIMIT 1`;
   return rows.length ? session : null;
 }
 
