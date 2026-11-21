@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { getApplicantSession } from "@/lib/applications/applicant-access";
+import { sendApplicationNotification } from "@/lib/applications/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,7 +64,23 @@ export async function POST(request: NextRequest) {
         status: 429, headers: { "Cache-Control": "private, no-store" }
       });
     }
-    return NextResponse.json({ ok: true, message: inserted[0], notification: "pending" }, {
+    const application = await sql`SELECT applicant_name, applicant_email
+      FROM application_submissions WHERE registration_id = ${session.registrationId} LIMIT 1`;
+    const ownerEmail = process.env.GOOGLE_OAUTH_OWNER_EMAIL ?? "";
+    const notification = application.length && ownerEmail
+      ? await sendApplicationNotification({
+          kind: "owner",
+          to: ownerEmail,
+          recipientName: "Lens & Light admin",
+          subject: "New applicant message — Lens & Light",
+          message: `A photographer applicant (${String(application[0].applicant_name)}) has sent a new message. Sign in to the Owner Workspace to review the application conversation.`
+        })
+      : { state: "pending" as const };
+    await sql`UPDATE application_messages
+      SET delivery_state = ${notification.state},
+          sent_at = CASE WHEN ${notification.state} = 'sent' THEN now() ELSE sent_at END
+      WHERE message_id = ${messageId}`;
+    return NextResponse.json({ ok: true, message: inserted[0], notification: notification.state }, {
       status: 201, headers: { "Cache-Control": "private, no-store" }
     });
   } catch {
