@@ -59,10 +59,6 @@ function safeHttpsUrl(value: unknown, required = false) {
   }
 }
 
-function emailHash(email: string) {
-  return createHmac("sha256", secret()).update(email).digest("hex");
-}
-
 function clientRateKey(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const ip = forwarded || request.headers.get("x-real-ip") || "unknown";
@@ -155,21 +151,6 @@ export async function POST(request: NextRequest) {
   try {
     const rate = await consumeRateLimit(request);
     if (rate > 5) return noStore({ error: "Too many application attempts. Please try again later." }, 429);
-
-    const sql = getDatabase();
-    const fingerprint = emailHash(email);
-    const active = await sql`SELECT registration_id
-      FROM application_submissions
-      WHERE applicant_email_hash = ${fingerprint}
-        AND status IN ('pending','under_review','needs_information','approved')
-      LIMIT 1`;
-    if (active.length) {
-      return noStore({
-        ok: true,
-        duplicate: true,
-        message: "If you already have an active application, please continue using your existing private application link. Otherwise, contact the Lens & Light team for help."
-      }, 202);
-    }
 
     const input: ApplicationSubmissionInput = {
       name, email, phone, town, region, categories, introduction, serviceAreas,
