@@ -1,5 +1,5 @@
 import "server-only";
-import { createCipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/database/neon";
 
 export type ApplicationSubmissionInput = {
@@ -42,6 +42,18 @@ function encryptAccessToken(token: string) {
     cipher.getAuthTag().toString("base64url"),
     encrypted.toString("base64url")
   ].join(".");
+}
+
+function decryptAccessToken(value: string) {
+  const [ivValue, tagValue, encryptedValue] = value.split(".");
+  if (!ivValue || !tagValue || !encryptedValue) throw new Error("Stored applicant access token is invalid.");
+  const key = createHash("sha256").update(signingSecret()).update(":applicant-link-encryption-v1").digest();
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(ivValue, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(encryptedValue, "base64url")),
+    decipher.final()
+  ]).toString("utf8");
 }
 
 function stablePayload(input: ApplicationSubmissionInput) {
@@ -152,9 +164,17 @@ export async function createApplicationSubmission(
   if (String(existing[0].payload_hash).trim() !== payloadHash) {
     return { created: false, conflict: true as const };
   }
+  const accessRows = await sql`SELECT payload->>'encryptedAccessToken' AS encrypted_access_token
+    FROM application_outbox
+    WHERE registration_id = ${String(existing[0].registration_id)}
+      AND event_type = 'application.acknowledgement_email'
+    ORDER BY created_at DESC LIMIT 1`;
+  const encrypted = String(accessRows[0]?.encrypted_access_token ?? "");
+  const replayToken = encrypted ? decryptAccessToken(encrypted) : "";
   return {
     created: false,
     registrationId: String(existing[0].registration_id),
+    ...(replayToken ? { accessLink: "/application/updates#access=" + encodeURIComponent(replayToken), accessLinkExpiresAt: tokenExpiry } : {}),
     idempotentReplay: true as const
   };
 }
