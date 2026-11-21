@@ -47,7 +47,7 @@ export async function GET() {
     for (const row of rows.slice(1)) {
       if (String(row[scopeIndex] ?? "") !== "platform") continue;
       const key = String(row[keyIndex] ?? "");
-      if (keys.includes(key as typeof keys[number])) values[key] = String(row[valueIndex] ?? "");
+      if (keys.includes(key as typeof keys[number])) { const value = String(row[valueIndex] ?? "").trim(); if (value) values[key] = value; }
     }
     const contact = {
       email: values.contact_email,
