@@ -5,7 +5,7 @@ import { Activity, Aperture, ArrowUpRight, BadgeCheck, BriefcaseBusiness, Camera
 
 type Status = { dataSource:string; workbook:string; verifiedTabs:number; expectedTabs:number; message:string };
 type Application = { id:string; name:string; email:string; phone:string; location:string; status:string; submittedAt:string; verificationDueAt:string };
-function initials(name:string){return name.split(/\\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()??"").join("")||"AP";}
+function initials(name:string){return name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]?.toUpperCase()??"").join("")||"AP";}
 function dateLabel(value:string){if(!value)return "Submission date unavailable";const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"numeric"});}
 const nav = [{id:"overview",label:"Overview",icon:LayoutDashboard},{id:"applications",label:"Applications",icon:ClipboardList},{id:"photographers",label:"Photographers",icon:Users},{id:"enquiries",label:"Enquiries",icon:Mail},{id:"integrations",label:"Integrations",icon:Database}];
 
