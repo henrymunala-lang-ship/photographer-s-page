@@ -143,7 +143,7 @@ export async function createApplicationSubmission(
     ), inserted_email_event AS (
       INSERT INTO application_outbox (event_id, registration_id, event_type, payload)
       SELECT ${emailEventId}, registration_id, 'application.acknowledgement_email',
-        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', ${encryptedToken})
+        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', ${encryptedToken}::text)
       FROM inserted_application
       RETURNING event_id
     )
