@@ -4,7 +4,7 @@ import { readValues } from "@/lib/integrations/google-sheets/client";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const keys = ["contact_email","contact_phone","contact_phone_secondary","contact_whatsapp","contact_website","contact_address","contact_instagram","contact_facebook","contact_tiktok","contact_hours","contact_visibility"] as const;
+const keys = ["contact_email","contact_phone","contact_phone_secondary","contact_website","contact_address","contact_instagram","contact_facebook","contact_tiktok","contact_hours","contact_visibility"] as const;
 const approvedDefaults = {
   email: "henrymunala2@gmail.com",
   phone: "0711205316",
