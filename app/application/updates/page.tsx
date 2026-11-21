@@ -73,7 +73,7 @@ export default function ApplicationUpdatesPage() {
       if (!response.ok) throw new Error(data.error || "Your message could not be saved.");
       setBody("");
       await loadMessages();
-      setNotice("Your reply has been saved. Email notification is not yet enabled.");
+      setNotice(data.notification === "sent" ? "Your reply has been saved and the Lens & Light team has been notified." : "Your reply has been saved. Email notification is not yet available.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Your message could not be saved.");
     } finally {
