@@ -171,10 +171,16 @@ export async function createApplicationSubmission(
     ORDER BY created_at DESC LIMIT 1`;
   const encrypted = String(accessRows[0]?.encrypted_access_token ?? "");
   const replayToken = encrypted ? decryptAccessToken(encrypted) : "";
+  const tokenRows = replayToken
+    ? await sql`SELECT expires_at FROM applicant_access_tokens WHERE token_hash = ${hash(replayToken)} LIMIT 1`
+    : [];
   return {
     created: false,
     registrationId: String(existing[0].registration_id),
-    ...(replayToken ? { accessLink: "/application/updates#access=" + encodeURIComponent(replayToken), accessLinkExpiresAt: tokenExpiry } : {}),
+    ...(replayToken && tokenRows.length ? {
+      accessLink: "/application/updates#access=" + encodeURIComponent(replayToken),
+      accessLinkExpiresAt: new Date(String(tokenRows[0].expires_at)).toISOString()
+    } : {}),
     idempotentReplay: true as const
   };
 }
