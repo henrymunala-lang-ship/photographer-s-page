@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 const FIELDS = {
   email: "contact_email",
   phone: "contact_phone",
+  phoneSecondary: "contact_phone_secondary",
   whatsapp: "contact_whatsapp",
   website: "contact_website",
   address: "contact_address",
@@ -20,9 +21,9 @@ const FIELDS = {
 } as const;
 type ContactKey = keyof typeof FIELDS;
 type Contact = Record<ContactKey, string>;
-const defaults: Contact = { email: "", phone: "", whatsapp: "", website: "", address: "", instagram: "", facebook: "", tiktok: "", hours: "", visibility: "hidden" };
+const defaults: Contact = { email: "henrymunala2@gmail.com", phone: "0711205316", phoneSecondary: "0713120290", whatsapp: "", website: "", address: "", instagram: "https://www.instagram.com/kynekenya/", facebook: "", tiktok: "", hours: "Monday–Friday: 8:00 AM–8:00 PM\nSaturday: 10:00 AM–6:00 PM\nSunday: Closed (EAT)", visibility: "public" };
 const descriptions: Record<ContactKey, string> = {
-  email: "Public platform contact email", phone: "Public platform phone number", whatsapp: "Public platform WhatsApp number",
+  email: "Public platform contact email", phone: "Public platform phone number", phoneSecondary: "Second public platform phone number", whatsapp: "Public platform WhatsApp number",
   website: "Official platform website", address: "Public business address", instagram: "Official Instagram profile",
   facebook: "Official Facebook profile", tiktok: "Official TikTok profile", hours: "Public business hours and timezone",
   visibility: "Whether platform contact details are approved for public display",
