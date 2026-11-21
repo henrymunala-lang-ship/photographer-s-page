@@ -52,3 +52,7 @@
  .market-footer .footer-links{justify-content:flex-start;grid-column:1/-1}
  .market-footer small{grid-column:1/-1}
 }
+
+.market-footer>.footer-signature{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px}
+.market button,.market a,.directory-page button,.directory-page a,.apply-form button,.profile-page button{font-weight:700}
+.market-footer>.footer-links{display:flex;flex-direction:row;align-items:center;justify-content:flex-end;gap:22px}
