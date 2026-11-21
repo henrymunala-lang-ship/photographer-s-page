@@ -107,3 +107,10 @@
  .market-header .mobile-site-menu>nav>a:last-child{border-bottom:0!important;}
  .market-header nav.desktop-site-nav{display:none!important;}
 }
+
+
+/* Use a real icon glyph for reliable hamburger rendering across mobile browsers */
+@media(max-width:650px){
+ .market-header .mobile-site-menu>summary{display:flex!important;align-items:center!important;justify-content:center!important;gap:0!important;}
+ .market-header .mobile-site-menu>summary svg{display:block!important;width:23px!important;height:23px!important;min-width:23px!important;min-height:23px!important;stroke:var(--ink)!important;stroke-width:2.4!important;opacity:1!important;visibility:visible!important;}
+}
