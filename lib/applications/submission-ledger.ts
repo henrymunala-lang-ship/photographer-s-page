@@ -108,9 +108,9 @@ export async function createApplicationSubmission(
         registration_id, website_url, portfolio_url, instagram_url,
         additional_gallery_url, other_social_url, service_areas_text, categories_json
       )
-      SELECT registration_id, ${input.websiteUrl || null}, ${input.portfolioUrl || null},
-        ${input.instagramUrl}, ${input.additionalGalleryUrl}, ${input.otherSocialUrl || null},
-        ${input.serviceAreas}, ${JSON.stringify(input.categories)}::jsonb
+      SELECT registration_id, ${input.websiteUrl || null}::text, ${input.portfolioUrl || null}::text,
+        ${input.instagramUrl}::text, ${input.additionalGalleryUrl}::text, ${input.otherSocialUrl || null}::text,
+        ${input.serviceAreas}::text, ${JSON.stringify(input.categories)}::jsonb
       FROM inserted_application
       RETURNING registration_id
     ), inserted_message AS (
