@@ -61,7 +61,7 @@
 
 ## 4. Schema gaps and decisions required before writing
 
-1. **Application portfolio/social fields:** the application form asks for website, portfolio URL, Instagram, an additional gallery URL and another social/profile URL. The audited registration and photographer headers do not expose dedicated columns for these values. Do not silently discard them, overload unrelated fields, or add columns. Decide whether to store selected links in a documented structured setting/profile field or revise the form to match the workbook.
+1. **Application portfolio/social fields:** the application form requires an Instagram URL and an additional gallery URL. Website, primary portfolio URL and other social/profile URLs are optional. The audited `01_REGISTRATIONS` and `02_PHOTOGRAPHERS` headers do not expose dedicated columns for these values. Do not silently discard them, overload `verification_notes` or `bio`, or add columns. Before accepting live submissions, define a structured profile-metadata record in `13_SETTINGS`, keyed to the registration while pending and to `photographer_id` after approval, with explicit keys for website, portfolio, Instagram, additional gallery and other social links. Validate URLs server-side and retain optional fields as empty/absent rather than blocking applicants.
 2. **Service areas:** the form currently collects a free-text area list, while the workbook has structured rows in `15_PHOTOGRAPHER_SERVICE_AREAS`. Define a parser/normalisation and country/county policy before writes.
 3. **Customer identity:** no dedicated customer account worksheet appears in the 22-tab schema. Do not introduce customer Google OAuth or assume a customer auth ID exists. Enquiry/review eligibility must use an explicitly designed privacy-safe matching mechanism.
 4. **Assets:** `original_asset_ref`, `image_preview_url`, `profile_image_url` and related fields imply asset storage/hosting responsibilities not established by the Sheets schema alone. Do not upload binary files into cells.
@@ -73,7 +73,7 @@
 ## 5. Recommended implementation order
 
 1. Define and validate column-level contracts and allowed state values for registrations, photographers, gallery, services, service areas and enquiries.
-2. Implement public application submission to `01_REGISTRATIONS` only after resolving the missing portfolio/social fields and duplicate/idempotency rules.
+2. Define the structured photographer-link metadata contract in `13_SETTINGS`, then implement public application submission to `01_REGISTRATIONS` plus its linked metadata record only after duplicate/idempotency and multi-write recovery rules are in place.
 3. Implement owner-authenticated application list/detail and review decisions, writing related `16_VERIFICATION_EVENTS` and `14_AUDIT_LOG` entries.
 4. Implement approved/published photographer directory reads and profile content reads.
 5. Implement enquiries/messages, then likes and profile views.
