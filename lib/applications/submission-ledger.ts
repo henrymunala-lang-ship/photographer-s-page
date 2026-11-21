@@ -79,15 +79,15 @@ export async function createApplicationSubmission(
   const encryptedToken = encryptAccessToken(rawAccessToken);
   const sql = getDatabase();
 
-  const created = await sql\`WITH inserted_application AS (
+  const created = await sql`WITH inserted_application AS (
       INSERT INTO application_submissions (
         registration_id, idempotency_key, payload_hash, applicant_name,
         applicant_email, applicant_email_hash, applicant_phone,
         primary_location, introduction, status, workbook_sync_state
       ) VALUES (
-        \${registrationId}, \${idempotencyKey}, \${payloadHash}, \${input.name},
-        \${normalizedEmail}, \${emailFingerprint(normalizedEmail)}, \${input.phone},
-        \${input.town + ", " + input.region}, \${input.introduction}, 'pending', 'pending'
+        ${registrationId}, ${idempotencyKey}, ${payloadHash}, ${input.name},
+        ${normalizedEmail}, ${emailFingerprint(normalizedEmail)}, ${input.phone},
+        ${input.town + ", " + input.region}, ${input.introduction}, 'pending', 'pending'
       )
       ON CONFLICT (idempotency_key) DO NOTHING
       RETURNING registration_id
@@ -96,46 +96,46 @@ export async function createApplicationSubmission(
         registration_id, website_url, portfolio_url, instagram_url,
         additional_gallery_url, other_social_url, service_areas_text, categories_json
       )
-      SELECT registration_id, \${input.websiteUrl || null}, \${input.portfolioUrl || null},
-        \${input.instagramUrl}, \${input.additionalGalleryUrl}, \${input.otherSocialUrl || null},
-        \${input.serviceAreas}, \${JSON.stringify(input.categories)}::jsonb
+      SELECT registration_id, ${input.websiteUrl || null}, ${input.portfolioUrl || null},
+        ${input.instagramUrl}, ${input.additionalGalleryUrl}, ${input.otherSocialUrl || null},
+        ${input.serviceAreas}, ${JSON.stringify(input.categories)}::jsonb
       FROM inserted_application
       RETURNING registration_id
     ), inserted_message AS (
       INSERT INTO application_messages (
         message_id, registration_id, sender_type, sender_ref, body, delivery_state
       )
-      SELECT \${messageId}, registration_id, 'system', 'system',
+      SELECT ${messageId}, registration_id, 'system', 'system',
         'Your application has been received and is awaiting review.', 'not_required'
       FROM inserted_application
       RETURNING message_id
     ), inserted_token AS (
       INSERT INTO applicant_access_tokens (token_id, registration_id, token_hash, expires_at)
-      SELECT \${tokenId}, registration_id, \${tokenHash}, \${tokenExpiry}::timestamptz
+      SELECT ${tokenId}, registration_id, ${tokenHash}, ${tokenExpiry}::timestamptz
       FROM inserted_application
       RETURNING token_id
     ), inserted_operation AS (
       INSERT INTO application_operations (
         idempotency_key, registration_id, payload_hash, operation_state
       )
-      SELECT \${idempotencyKey}, registration_id, \${payloadHash}, 'completed'
+      SELECT ${idempotencyKey}, registration_id, ${payloadHash}, 'completed'
       FROM inserted_application
       ON CONFLICT (idempotency_key) DO NOTHING
       RETURNING idempotency_key
     ), inserted_workbook_event AS (
       INSERT INTO application_outbox (event_id, registration_id, event_type, payload)
-      SELECT \${workbookEventId}, registration_id, 'application.workbook_sync',
+      SELECT ${workbookEventId}, registration_id, 'application.workbook_sync',
         jsonb_build_object('registrationId', registration_id)
       FROM inserted_application
       RETURNING event_id
     ), inserted_email_event AS (
       INSERT INTO application_outbox (event_id, registration_id, event_type, payload)
-      SELECT \${emailEventId}, registration_id, 'application.acknowledgement_email',
-        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', \${encryptedToken})
+      SELECT ${emailEventId}, registration_id, 'application.acknowledgement_email',
+        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', ${encryptedToken})
       FROM inserted_application
       RETURNING event_id
     )
-    SELECT registration_id FROM inserted_application\`;
+    SELECT registration_id FROM inserted_application`;
 
   if (created.length) {
     return {
@@ -146,8 +146,8 @@ export async function createApplicationSubmission(
     };
   }
 
-  const existing = await sql\`SELECT registration_id, payload_hash
-    FROM application_submissions WHERE idempotency_key = \${idempotencyKey} LIMIT 1\`;
+  const existing = await sql`SELECT registration_id, payload_hash
+    FROM application_submissions WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
   if (!existing.length) throw new Error("The application submission could not be committed.");
   if (String(existing[0].payload_hash).trim() !== payloadHash) {
     return { created: false, conflict: true as const };
