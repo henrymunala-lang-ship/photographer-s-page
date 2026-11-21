@@ -64,7 +64,7 @@ export async function GET() {
     for (const row of rows.slice(1)) {
       if (String(row[headers.indexOf("scope")] ?? "") !== "platform") continue;
       const key = (Object.keys(FIELDS) as ContactKey[]).find(item => FIELDS[item] === String(row[keyIndex] ?? ""));
-      if (key) contact[key] = String(row[valueIndex] ?? "");
+      if (key && key !== "whatsapp") contact[key] = String(row[valueIndex] ?? "");
     }
     return NextResponse.json({ contact, source: "google_sheets", readOnly: true }, { headers: noStore });
   } catch {
