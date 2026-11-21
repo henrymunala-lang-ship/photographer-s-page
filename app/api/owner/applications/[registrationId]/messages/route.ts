@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin, can, appendAudit } from "@/lib/owner/admin-auth";
 import { getDatabase } from "@/lib/database/neon";
+import { sendApplicationNotification } from "@/lib/applications/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,7 +59,22 @@ export async function POST(
       RETURNING message_id, sender_type, sender_ref, body, delivery_state, created_at`;
     if (!rows.length) return NextResponse.json({ error: "Application not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
     await appendAudit(actor, "application.message.created", "application", registrationId, { messageId });
-    return NextResponse.json({ ok: true, message: rows[0], notification: "pending" }, {
+    const applicants = await sql`SELECT applicant_name, applicant_email
+      FROM application_submissions WHERE registration_id = ${registrationId} LIMIT 1`;
+    const notification = applicants.length
+      ? await sendApplicationNotification({
+          kind: "applicant",
+          to: String(applicants[0].applicant_email),
+          recipientName: String(applicants[0].applicant_name),
+          subject: "A new update on your Lens & Light application",
+          message: "The Lens & Light team has replied to your application. Open your private application updates link to read the message and respond."
+        })
+      : { state: "pending" as const };
+    await sql`UPDATE application_messages
+      SET delivery_state = ${notification.state},
+          sent_at = CASE WHEN ${notification.state} = 'sent' THEN now() ELSE sent_at END
+      WHERE message_id = ${messageId}`;
+    return NextResponse.json({ ok: true, message: rows[0], notification: notification.state }, {
       status: 201, headers: { "Cache-Control": "private, no-store" }
     });
   } catch {
