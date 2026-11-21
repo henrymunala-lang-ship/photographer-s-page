@@ -168,3 +168,13 @@ export async function updateValues(
     { method: "PUT", body: JSON.stringify({ majorDimension: "ROWS", values }) }
   );
 }
+export async function batchUpdateSpreadsheet(
+  requests: Array<Record<string, unknown>>
+): Promise<{ replies?: unknown[] }> {
+  if (requests.length === 0) throw new Error("Refusing to submit an empty spreadsheet batch.");
+  const id = encodeURIComponent(getSpreadsheetId());
+  return sheetsRequest(
+    `/spreadsheets/${id}:batchUpdate`,
+    { method: "POST", body: JSON.stringify({ requests }) }
+  );
+}
