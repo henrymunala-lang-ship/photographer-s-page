@@ -45,12 +45,30 @@ export async function sendApplicationNotification(input: {
       }),
       signal: AbortSignal.timeout(8000)
     });
+    const responseText = await response.text();
+    let result: { id?: string; name?: string; code?: string; message?: string } = {};
+    try { result = JSON.parse(responseText) as typeof result; } catch { /* keep provider details private */ }
     if (!response.ok) {
-      return { state: "failed" as const, reason: "provider_rejected" as const };
+      const providerCode = typeof result.name === "string" ? result.name
+        : typeof result.code === "string" ? result.code : "unknown";
+      console.warn("[application-notification] provider rejected request", {
+        kind: input.kind,
+        status: response.status,
+        providerCode
+      });
+      return {
+        state: "failed" as const,
+        reason: "provider_rejected" as const,
+        providerStatus: response.status,
+        providerCode
+      };
     }
-    const result = await response.json() as { id?: string };
     return { state: "sent" as const, providerMessageId: result.id ?? null };
-  } catch {
+  } catch (error) {
+    console.warn("[application-notification] provider request failed", {
+      kind: input.kind,
+      errorName: error instanceof Error ? error.name : "UnknownError"
+    });
     return { state: "failed" as const, reason: "provider_unavailable" as const };
   }
 }
