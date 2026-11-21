@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
   if (!configuredUsername || configuredPassword.length < 32 || !username || password.length !== configuredPassword.length) {
     return NextResponse.json({ error: "Owner username or password is incorrect." }, { status: 401 });
   }
-  const usernameMatches = timingSafeEqual(Buffer.from(username), Buffer.from(configuredUsername));
+  const submittedUsernameBytes = Buffer.from(username);
+  const configuredUsernameBytes = Buffer.from(configuredUsername);
+  const usernameMatches = submittedUsernameBytes.length === configuredUsernameBytes.length && timingSafeEqual(submittedUsernameBytes, configuredUsernameBytes);
   const passwordMatches = timingSafeEqual(Buffer.from(password), Buffer.from(configuredPassword));
   if (!usernameMatches || !passwordMatches) {
     return NextResponse.json({ error: "Owner username or password is incorrect." }, { status: 401 });
