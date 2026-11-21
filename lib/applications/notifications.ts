@@ -17,7 +17,14 @@ export async function sendApplicationNotification(input: {
   message: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || !input.to) return { state: "pending" as const, reason: "not_configured" as const };
+  if (!apiKey || !input.to) {
+    console.warn("[application-notification] skipped: configuration missing", {
+      kind: input.kind,
+      apiKeyConfigured: Boolean(apiKey),
+      recipientConfigured: Boolean(input.to)
+    });
+    return { state: "pending" as const, reason: "not_configured" as const };
+  }
 
   // Resend's shared test sender can notify the verified account owner only.
   // Applicant-facing mail requires a sender on a verified custom domain.
@@ -63,6 +70,10 @@ export async function sendApplicationNotification(input: {
         providerCode
       };
     }
+    console.info("[application-notification] provider accepted request", {
+      kind: input.kind,
+      providerMessageId: result.id ?? null
+    });
     return { state: "sent" as const, providerMessageId: result.id ?? null };
   } catch (error) {
     console.warn("[application-notification] provider request failed", {
