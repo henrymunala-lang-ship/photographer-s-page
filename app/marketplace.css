@@ -23,3 +23,33 @@
 .market-hero-visual{overflow:hidden}
 .market-hero-visual>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center center}
 @media(max-width:650px){.market-header nav{display:flex;gap:0}.market-header nav a:not(.home-nav-link){display:none}.market-header nav .home-nav-link{font-size:9px}}
+
+
+/* Lens & Light brand refinement */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap');
+.market-brand{font-weight:800;letter-spacing:.12em}
+.brand-wordmark{display:flex;flex-direction:column;gap:4px;line-height:1}
+.brand-wordmark strong{font-size:13px;font-weight:800;letter-spacing:.15em;color:var(--ink)}
+.brand-wordmark small{font-size:7px;font-weight:700;letter-spacing:.16em;color:var(--gold)}
+.brand-mark{width:38px;height:38px;border:1px solid #a58b69;background:#292824;color:#f4e8d6;box-shadow:inset 0 0 0 3px #292824,0 0 0 1px #a58b69}
+.brand-mark svg{filter:drop-shadow(0 1px 1px #0005)}
+.market-header nav a,.header-cta,.button-dark,.button-light,.button-text,.market-footer a{font-weight:800}
+.market-header nav .home-nav-link{display:inline-flex;align-items:center;gap:7px;font-weight:800;color:var(--ink);border-bottom:2px solid var(--gold);padding:9px 0}
+.market h1,.market h2,.market h3,.directory-page h1,.directory-page h2,.apply-intro h1,.profile-hero h1{font-weight:700}
+.market-hero h1,.section-title-row h2,.how-copy h2,.join-section h2{font-weight:700}
+.market-footer{grid-template-columns:1fr auto;gap:20px;align-items:end;padding-top:34px;padding-bottom:24px}
+.footer-signature{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.footer-company{font-size:11px;font-weight:800;letter-spacing:.14em;color:#f6f4ef}
+.footer-signature strong{font-size:10px;font-weight:800;letter-spacing:.16em;color:#c3a783}
+.footer-super-admin{font-size:10px;font-weight:800;letter-spacing:.08em;color:#f6f4ef;margin-top:4px}
+.market-footer .footer-links{display:flex;gap:22px;justify-content:flex-end;font-size:9px;font-weight:800;letter-spacing:.12em;color:#d2cec5}
+.market-footer small{grid-column:1/-1;font-weight:700}
+.market button,.market-footer a,.directory-page button,.apply-form button{font-weight:700}
+@media(max-width:650px){
+ .market-header nav{display:flex;align-items:center;gap:0;margin-left:auto;margin-right:14px}
+ .market-header nav a:not(.home-nav-link){display:none}
+ .market-header nav .home-nav-link{font-size:9px;padding:10px 0;white-space:nowrap}
+ .market-footer{grid-template-columns:1fr;gap:18px}
+ .market-footer .footer-links{justify-content:flex-start;grid-column:1/-1}
+ .market-footer small{grid-column:1/-1}
+}
