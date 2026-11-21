@@ -75,9 +75,16 @@ export async function POST(request: NextRequest) {
           subject: "New applicant message — Lens & Light",
           message: `A photographer applicant (${String(application[0].applicant_name)}) has sent a new message. Sign in to the Owner Workspace to review the application conversation.`
         })
-      : { state: "pending" as const };
+      : { state: "pending" as const, reason: "not_configured" as const };
+    const providerMessageId = "providerMessageId" in notification ? notification.providerMessageId : null;
+    console.info("[application-message] applicant reply notification result", {
+      messageId,
+      notificationState: notification.state,
+      notificationReason: "reason" in notification ? notification.reason : null
+    });
     await sql`UPDATE application_messages
       SET delivery_state = ${notification.state},
+          provider_message_ref = ${providerMessageId}::text,
           sent_at = CASE WHEN ${notification.state} = 'sent' THEN now() ELSE sent_at END
       WHERE message_id = ${messageId}`;
     return NextResponse.json({
