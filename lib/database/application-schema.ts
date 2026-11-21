@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v1";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v2";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -27,6 +27,9 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS application_submissions_email_hash_idx
     ON application_submissions (applicant_email_hash, created_at DESC)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS application_active_email_unique_idx
+    ON application_submissions (applicant_email_hash)
+    WHERE status IN ('pending','under_review','needs_information','approved')`,
   `CREATE TABLE IF NOT EXISTS application_details (
     registration_id text PRIMARY KEY REFERENCES application_submissions(registration_id) ON DELETE CASCADE,
     website_url text,
@@ -89,7 +92,13 @@ const statements = [
     processed_at timestamptz
   )`,
   `CREATE INDEX IF NOT EXISTS application_outbox_due_idx
-    ON application_outbox (state, next_attempt_at, created_at)`
+    ON application_outbox (state, next_attempt_at, created_at)`,
+  `CREATE TABLE IF NOT EXISTS application_rate_limits (
+    rate_key char(64) PRIMARY KEY,
+    window_started_at timestamptz NOT NULL DEFAULT now(),
+    request_count integer NOT NULL DEFAULT 0 CHECK (request_count >= 0),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`
 ] as const;
 
 export async function migrateApplicationDatabase() {
@@ -107,7 +116,8 @@ export async function migrateApplicationDatabase() {
         'application_messages',
         'applicant_access_tokens',
         'application_operations',
-        'application_outbox'
+        'application_outbox',
+        'application_rate_limits'
       ])`;
   const found = new Set(rows.map((row) => String(row.table_name)));
   const expected = [
@@ -117,7 +127,8 @@ export async function migrateApplicationDatabase() {
     "application_messages",
     "applicant_access_tokens",
     "application_operations",
-    "application_outbox"
+    "application_outbox",
+    "application_rate_limits"
   ];
   const missing = expected.filter((table) => !found.has(table));
   if (missing.length) throw new Error("Application database schema verification failed.");
