@@ -74,7 +74,13 @@ export async function POST(
       SET delivery_state = ${notification.state},
           sent_at = CASE WHEN ${notification.state} = 'sent' THEN now() ELSE sent_at END
       WHERE message_id = ${messageId}`;
-    return NextResponse.json({ ok: true, message: rows[0], notification: notification.state }, {
+    return NextResponse.json({
+      ok: true,
+      message: rows[0],
+      notification: notification.state,
+      notificationReason: "reason" in notification ? notification.reason : null,
+      notificationProviderCode: "providerCode" in notification ? notification.providerCode : null
+    }, {
       status: 201, headers: { "Cache-Control": "private, no-store" }
     });
   } catch {
