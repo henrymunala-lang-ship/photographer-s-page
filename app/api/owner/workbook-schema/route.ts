@@ -1,12 +1,11 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { currentAdmin, can } from "@/lib/owner/admin-auth";
 import { NextResponse } from "next/server";
 import { readValues } from "@/lib/integrations/google-sheets/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const COOKIE = "ll_owner_preview_session";
+
 const TABS = [
   "01_REGISTRATIONS", "02_PHOTOGRAPHERS", "03_ADMINS", "04_GALLERY",
   "05_SERVICES", "06_WORKING_HOURS", "07_ENQUIRIES", "08_MESSAGES",
@@ -15,18 +14,6 @@ const TABS = [
   "17_CONDUCT_CASES", "18_PLANS_SUBSCRIPTIONS", "19_PHOTO_PRODUCTS",
   "20_PHOTO_ORDERS", "21_ADMIN_INVITATIONS", "22_PHOTOGRAPHER_ALBUMS"
 ];
-
-function hasOwnerSession(value?: string) {
-  const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
-  if (!value || secret.length < 32) return false;
-  const expected = createHmac("sha256", secret)
-    .update("lens-light-owner-preview-v1")
-    .digest("base64url");
-  const actualBytes = Buffer.from(value);
-  const expectedBytes = Buffer.from(expected);
-  return actualBytes.length === expectedBytes.length &&
-    timingSafeEqual(actualBytes, expectedBytes);
-}
 
 function columnName(index: number) {
   let value = index + 1;
@@ -40,20 +27,8 @@ function columnName(index: number) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(COOKIE)?.value;
-  if (!sessionCookie) {
-    return NextResponse.json({ error: "Owner session cookie was not received. Sign in again on this exact Preview hostname.", code: "OWNER_SESSION_MISSING" }, {
-      status: 401,
-      headers: { "Cache-Control": "private, no-store" }
-    });
-  }
-  if (!hasOwnerSession(sessionCookie)) {
-    return NextResponse.json({ error: "Owner session was received but could not be verified. The Preview signing configuration needs attention.", code: "OWNER_SESSION_INVALID" }, {
-      status: 401,
-      headers: { "Cache-Control": "private, no-store" }
-    });
-  }
+  const actor=await currentAdmin();
+  if(!actor||!can(actor,"admins:manage")) return NextResponse.json({error:"Super Admin access required."},{status:403,headers:{"Cache-Control":"private,no-store"}});
 
   try {
     const tabs = [];
