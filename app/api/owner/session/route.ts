@@ -23,19 +23,21 @@ function signature(): string {
 }
 
 export async function POST(request: NextRequest) {
-  const submitted = String((await request.json().catch(() => ({}))).setupKey ?? "");
-  const configured = process.env.GOOGLE_OAUTH_SETUP_KEY ?? "";
-  if (!configured || configured.length < 32 || submitted.length !== configured.length) {
-    return NextResponse.json({ error: "Owner access could not be verified." }, { status: 401 });
+  const submitted = await request.json().catch(() => ({})) as { username?: string; password?: string };
+  const configuredUsername = (process.env.GOOGLE_OAUTH_OWNER_EMAIL ?? "").trim().toLowerCase();
+  const configuredPassword = process.env.GOOGLE_OAUTH_SETUP_KEY ?? "";
+  const username = String(submitted.username ?? "").trim().toLowerCase();
+  const password = String(submitted.password ?? "");
+  if (!configuredUsername || configuredPassword.length < 32 || !username || password.length !== configuredPassword.length) {
+    return NextResponse.json({ error: "Owner username or password is incorrect." }, { status: 401 });
   }
-  const a = Buffer.from(submitted);
-  const b = Buffer.from(configured);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    return NextResponse.json({ error: "Owner access could not be verified." }, { status: 401 });
+  const usernameMatches = timingSafeEqual(Buffer.from(username), Buffer.from(configuredUsername));
+  const passwordMatches = timingSafeEqual(Buffer.from(password), Buffer.from(configuredPassword));
+  if (!usernameMatches || !passwordMatches) {
+    return NextResponse.json({ error: "Owner username or password is incorrect." }, { status: 401 });
   }
   const response = NextResponse.json({ ok: true });
-  // Lax permits the owner to open the read-only audit from a trusted external
-  // link while still withholding the cookie on cross-site POST requests.
+  // The signed owner session is independent of the Google OAuth refresh token.
   response.cookies.set(COOKIE, signature(), {
     httpOnly: true, secure: process.env.NODE_ENV === "production",
     sameSite: "lax", path: "/", maxAge: MAX_AGE
