@@ -1,24 +1,11 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { currentAdmin, can } from "@/lib/owner/admin-auth";
 import { NextResponse } from "next/server";
 import { readValues } from "@/lib/integrations/google-sheets/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const COOKIE = "ll_owner_preview_session";
 const RANGE = "'01_REGISTRATIONS'!A1:N501";
-
-function hasOwnerSession(value?: string) {
-  const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
-  if (!value || secret.length < 32) return false;
-  const expected = createHmac("sha256", secret)
-    .update("lens-light-owner-preview-v1")
-    .digest("base64url");
-  const actual = Buffer.from(value);
-  const wanted = Buffer.from(expected);
-  return actual.length === wanted.length && timingSafeEqual(actual, wanted);
-}
 
 function cell(row: string[], headers: string[], key: string): string {
   const index = headers.indexOf(key);
@@ -26,13 +13,8 @@ function cell(row: string[], headers: string[], key: string): string {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  if (!hasOwnerSession(cookieStore.get(COOKIE)?.value)) {
-    return NextResponse.json(
-      { error: "Owner access required.", code: "OWNER_ACCESS_REQUIRED" },
-      { status: 401, headers: { "Cache-Control": "private, no-store" } }
-    );
-  }
+  const actor = await currentAdmin();
+  if (!actor || !can(actor, "applications:read")) return NextResponse.json({ error: "Administrator access required.", code: "OWNER_ACCESS_REQUIRED" }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
 
   try {
     // Owner-only, bounded read of registration records. No writes are performed.
