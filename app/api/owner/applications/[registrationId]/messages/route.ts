@@ -22,12 +22,12 @@ export async function GET(
   try {
     const registrationId = context.params.registrationId;
     const sql = getDatabase();
-    const applications = await sql\`SELECT registration_id, status, created_at
-      FROM application_submissions WHERE registration_id = \${registrationId} LIMIT 1\`;
+    const applications = await sql`SELECT registration_id, status, created_at
+      FROM application_submissions WHERE registration_id = ${registrationId} LIMIT 1`;
     if (!applications.length) return NextResponse.json({ error: "Application not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
-    const messages = await sql\`SELECT message_id, sender_type, sender_ref, body, delivery_state, created_at, sent_at
-      FROM application_messages WHERE registration_id = \${registrationId}
-      ORDER BY created_at ASC, message_id ASC LIMIT 500\`;
+    const messages = await sql`SELECT message_id, sender_type, sender_ref, body, delivery_state, created_at, sent_at
+      FROM application_messages WHERE registration_id = ${registrationId}
+      ORDER BY created_at ASC, message_id ASC LIMIT 500`;
     return NextResponse.json({ application: applications[0], messages }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ error: "Application conversation could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
@@ -50,12 +50,12 @@ export async function POST(
     const registrationId = context.params.registrationId;
     const messageId = "appmsg_" + randomUUID();
     const sql = getDatabase();
-    const rows = await sql\`INSERT INTO application_messages
+    const rows = await sql`INSERT INTO application_messages
       (message_id, registration_id, sender_type, sender_ref, body, delivery_state)
-      SELECT \${messageId}, registration_id, 'admin', \${actor.adminId}, \${body}, 'pending'
+      SELECT ${messageId}, registration_id, 'admin', ${actor.adminId}, ${body}, 'pending'
       FROM application_submissions
-      WHERE registration_id = \${registrationId}
-      RETURNING message_id, sender_type, sender_ref, body, delivery_state, created_at\`;
+      WHERE registration_id = ${registrationId}
+      RETURNING message_id, sender_type, sender_ref, body, delivery_state, created_at`;
     if (!rows.length) return NextResponse.json({ error: "Application not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
     await appendAudit(actor, "application.message.created", "application", registrationId, { messageId });
     return NextResponse.json({ ok: true, message: rows[0], notification: "pending" }, {
