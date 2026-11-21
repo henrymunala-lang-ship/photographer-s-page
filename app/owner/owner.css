@@ -4,3 +4,18 @@
 .owner-admin-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}.owner-admin-form label{display:grid;gap:8px;font-size:9px;color:#77746c}.owner-admin-form input,.owner-admin-form select{width:100%;padding:12px;border:1px solid #dedbd2;background:#fffefa;color:#272722;font:11px 'DM Sans',sans-serif}.owner-admin-form button{grid-column:1/-1;width:max-content}.owner-admin-help,.owner-invite-link{font-size:9px;line-height:1.8;color:#77746c;margin-top:15px}.owner-invite-link a{display:block;overflow-wrap:anywhere;color:#78654d;margin-top:6px}@media(max-width:700px){.owner-admin-form{grid-template-columns:1fr}.owner-admin-form button{grid-column:auto}}
 
 .owner-recovery-link{border:0;background:transparent;color:#78654d;font:9px 'DM Sans',sans-serif;text-decoration:underline;text-align:left;padding:8px 0;cursor:pointer}
+
+
+/* Password visibility and typography polish */
+.owner-password-field{position:relative;display:flex;align-items:center;width:100%}
+.owner-password-field>input{width:100%;padding-right:46px!important}
+.owner-password-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:36px;height:34px;border:0;background:transparent;color:#78654d;display:grid;place-items:center;cursor:pointer}
+.owner-password-toggle:hover{background:#eeeae1}
+.owner-sidebar nav button,.owner-side-bottom>button,.owner-topbar b,.owner-panel-head button,.owner-primary,.owner-secondary,.owner-table .owner-application-row>a,.owner-application-row>a,.owner-footer,.owner-login-card>a,.owner-recovery-link{font-weight:800}
+.owner-welcome h1,.owner-panel h2,.owner-login h1,.owner-empty-panel h2{font-weight:700}
+.owner-footer{align-items:flex-start;gap:20px;line-height:1.8}
+.owner-footer .owner-footer-signature{display:flex;flex-direction:column;gap:4px}
+.owner-footer .owner-footer-signature strong{font-size:9px;letter-spacing:.14em;color:#272722}
+.owner-footer .owner-footer-signature span{font-size:9px;color:#78654d}
+.owner-footer .owner-footer-meta{margin-left:auto;text-align:right;font-size:8px}
+.owner-admin-form button,.owner-sidebar button,.owner-shell button{font-weight:700}
