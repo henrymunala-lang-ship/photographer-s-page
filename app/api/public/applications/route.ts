@@ -160,6 +160,13 @@ export async function POST(request: NextRequest) {
     if ("conflict" in result && result.conflict) {
       return noStore({ error: "This submission key was already used for different application details. Please reload the form and try again." }, 409);
     }
+    if ("duplicate" in result && result.duplicate) {
+      return noStore({
+        ok: true,
+        duplicate: true,
+        message: "If you already have an active application, please continue using your existing private application link. Otherwise, contact the Lens & Light team for help."
+      }, 202);
+    }
     return noStore({
       ok: true,
       registrationId: result.registrationId,
