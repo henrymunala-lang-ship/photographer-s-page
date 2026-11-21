@@ -73,7 +73,13 @@ export default function ApplicationUpdatesPage() {
       if (!response.ok) throw new Error(data.error || "Your message could not be saved.");
       setBody("");
       await loadMessages();
-      setNotice(data.notification === "sent" ? "Your reply has been saved and the Lens & Light team has been notified." : "Your reply has been saved. Email notification is not yet available.");
+      setNotice(data.notification === "sent"
+        ? "Your reply has been saved. The email provider accepted the owner notification."
+        : data.notificationReason === "verified_sender_required"
+          ? "Your reply has been saved. Owner email notifications need a configured sender."
+          : data.notificationReason === "not_configured"
+            ? "Your reply has been saved, but email notifications are not configured."
+            : "Your reply has been saved, but the owner email notification could not be sent. The team can still read your message here.");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Your message could not be saved.");
     } finally {
@@ -123,7 +129,7 @@ export default function ApplicationUpdatesPage() {
           )}
           {notice && !loading && <p role="status" style={{ color: "#6d685f", lineHeight: 1.6, marginTop: 16 }}>{notice}</p>}
         </section>
-        <p style={{ marginTop: 18, fontSize: 11, color: "#7a7469", lineHeight: 1.6 }}>Keep this access link private. It is tied to one application and can expire or be revoked. Messages are saved securely; email notifications are not yet enabled.</p>
+        <p style={{ marginTop: 18, fontSize: 11, color: "#7a7469", lineHeight: 1.6 }}>Keep this access link private. It is tied to one application and can expire or be revoked. Messages are saved securely in this private conversation. Email notifications are a separate service and may not always be available.</p>
       </div>
     </main>
   );
