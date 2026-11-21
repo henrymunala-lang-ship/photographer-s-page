@@ -41,7 +41,7 @@ export default function PhotographerApplyPage(){
         body:JSON.stringify(payload)
       });
       const result=await response.json();
-      if(!response.ok)throw new Error(result.error||"Your application could not be submitted. Please try again.");
+      if(!response.ok){const reference=typeof result.requestId==="string"?` Reference: ${result.requestId}`:"";throw new Error((result.error||"Your application could not be submitted. Please try again.")+reference);}
       if(result.duplicate)throw new Error(result.message||"An active application already exists for this email address.");
       if(typeof result.accessLink==="string"&&result.accessLink.startsWith("/application/updates#access=")){
         setAccessLink(new URL(result.accessLink,window.location.origin).toString());
