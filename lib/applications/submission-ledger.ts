@@ -101,7 +101,7 @@ export async function createApplicationSubmission(
         ${normalizedEmail}, ${emailFingerprint(normalizedEmail)}, ${input.phone},
         ${input.town + ", " + input.region}, ${input.introduction}, 'pending', 'pending'
       )
-      ON CONFLICT (idempotency_key) DO NOTHING
+      ON CONFLICT DO NOTHING
       RETURNING registration_id
     ), inserted_details AS (
       INSERT INTO application_details (
@@ -160,7 +160,15 @@ export async function createApplicationSubmission(
 
   const existing = await sql`SELECT registration_id, payload_hash
     FROM application_submissions WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
-  if (!existing.length) throw new Error("The application submission could not be committed.");
+  if (!existing.length) {
+    const duplicate = await sql`SELECT registration_id
+      FROM application_submissions
+      WHERE applicant_email_hash = ${emailFingerprint(normalizedEmail)}
+        AND status IN ('pending','under_review','needs_information','approved')
+      LIMIT 1`;
+    if (duplicate.length) return { created: false, duplicate: true as const };
+    throw new Error("The application submission could not be committed.");
+  }
   if (String(existing[0].payload_hash).trim() !== payloadHash) {
     return { created: false, conflict: true as const };
   }
