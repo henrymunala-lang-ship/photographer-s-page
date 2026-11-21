@@ -70,7 +70,11 @@
 7. **Sensitive data:** keep admin-only, buyer, reporter, evidence, provider references, token hashes and audit metadata out of public APIs. Public reads must use explicit allowlists, not entire row objects.
 8. **Auditability:** privileged state changes should write an audit event with actor, action, target and minimal metadata. Never log credentials, raw OAuth tokens, invitation tokens or full payment secrets.
 
-## 5. Recommended implementation order
+## 5. Application conversation storage decision
+
+The application intake and applicant-reply design is specified in [`APPLICATION_INTAKE_AND_CONVERSATION.md`](./APPLICATION_INTAKE_AND_CONVERSATION.md). It keeps application messages separate from customer enquiry messages and proposes additive `23_APPLICATION_DETAILS` and `24_APPLICATION_MESSAGES` worksheets. These tabs have **not** been created. The form remains Preview Only until schema migration, durable idempotency/locking, recoverable multi-write handling, applicant access, abuse controls and transactional email delivery are implemented and verified. No existing worksheet or header is changed by this decision.
+
+## 6. Recommended implementation order
 
 1. Define and validate column-level contracts and allowed state values for registrations, photographers, gallery, services, service areas and enquiries.
 2. Define the structured photographer-link metadata contract in `13_SETTINGS`, then implement public application submission to `01_REGISTRATIONS` plus its linked metadata record only after duplicate/idempotency and multi-write recovery rules are in place.
@@ -80,7 +84,7 @@
 6. Implement reviews/reports/conduct moderation.
 7. Implement subscriptions and photo commerce only after payment and asset/entitlement security design.
 
-## 6. Non-negotiable safeguards
+## 7. Non-negotiable safeguards
 
 - Preserve all 22 existing worksheets and their current headers.
 - Keep all work on `integration-foundation` and Preview deployments; do not deploy Production or alter Production settings.
