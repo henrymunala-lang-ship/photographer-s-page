@@ -11,7 +11,7 @@ function secret(){const v=process.env.GOOGLE_OAUTH_STATE_SECRET??"";if(v.length<
 function sign(value:string){return createHmac("sha256",secret()).update(value).digest("base64url");}
 export function makeSessionCookie(session:AdminSession){const payload=Buffer.from(JSON.stringify(session)).toString("base64url");return payload+"."+sign(payload);}
 export function verifySession(value?:string):AdminSession|null{try{if(!value)return null;const [payload,signature]=value.split(".");if(!payload||!signature)return null;const expected=Buffer.from(sign(payload)),actual=Buffer.from(signature);if(expected.length!==actual.length||!timingSafeEqual(expected,actual))return null;const data=JSON.parse(Buffer.from(payload,"base64url").toString()) as AdminSession;if(!data.adminId||!data.email||!data.role||data.exp<Date.now()||!permissions[data.role])return null;return data;}catch{return null;}}
-export async function currentAdmin(){const jar=await cookies();return verifySession(jar.get(COOKIE)?.value);}
+export async function currentAdmin(){const jar=await cookies(),session=verifySession(jar.get(COOKIE)?.value);if(!session)return null;const admins=await getAdmins(),active=admins.find(a=>a.admin_id===session.adminId&&a.email?.toLowerCase()===session.email.toLowerCase()&&a.status==="active"&&a.role===session.role);return active?session:null;}
 export function can(session:AdminSession|null,permission:string){return !!session&&(session.role==="super_admin"||permissions[session.role]?.includes(permission)===true);}
 export function cookieName(){return COOKIE;}
 export async function hashPassword(password:string){const salt=randomBytes(16).toString("hex");const key=await scrypt(password,salt,64) as Buffer;return salt+":"+key.toString("hex");}
