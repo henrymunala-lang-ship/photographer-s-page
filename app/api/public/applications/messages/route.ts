@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
     const session = await getApplicantSession(request);
     if (!session) return NextResponse.json({ error: "Applicant access is required." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
     const sql = getDatabase();
-    const rows = await sql\`SELECT message_id, sender_type, body, delivery_state, created_at
+    const rows = await sql`SELECT message_id, sender_type, body, delivery_state, created_at
       FROM application_messages
-      WHERE registration_id = \${session.registrationId}
+      WHERE registration_id = ${session.registrationId}
       ORDER BY created_at ASC, message_id ASC
-      LIMIT 200\`;
+      LIMIT 200`;
     return NextResponse.json({ messages: rows }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ error: "The application conversation is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
     }
     const sql = getDatabase();
     const messageId = "appmsg_" + randomUUID();
-    const inserted = await sql\`WITH eligible AS (
+    const inserted = await sql`WITH eligible AS (
         UPDATE applicant_access_tokens
         SET last_message_at = now(), last_used_at = now()
-        WHERE token_id = \${session.tokenId}
-          AND registration_id = \${session.registrationId}
+        WHERE token_id = ${session.tokenId}
+          AND registration_id = ${session.registrationId}
           AND revoked_at IS NULL
           AND expires_at > now()
           AND (last_message_at IS NULL OR last_message_at < now() - interval '15 seconds')
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
       )
       INSERT INTO application_messages
         (message_id, registration_id, sender_type, sender_ref, body, delivery_state)
-      SELECT \${messageId}, registration_id, 'applicant', 'applicant', \${body}, 'pending'
+      SELECT ${messageId}, registration_id, 'applicant', 'applicant', ${body}, 'pending'
       FROM eligible
-      RETURNING message_id, sender_type, body, delivery_state, created_at\`;
+      RETURNING message_id, sender_type, body, delivery_state, created_at`;
     if (!inserted.length) {
       return NextResponse.json({ error: "Please wait a moment before sending another message." }, {
         status: 429, headers: { "Cache-Control": "private, no-store" }
