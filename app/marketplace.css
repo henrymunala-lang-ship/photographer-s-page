@@ -22,7 +22,7 @@
 .category-error{font-size:9px;color:#b33a32;margin:-16px 0 22px}
 .market-hero-visual{overflow:hidden}
 .market-hero-visual>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center center}
-@media(max-width:650px){.market-header nav{display:flex;gap:0}.market-header nav a:not(.home-nav-link){display:none}.market-header nav .home-nav-link{font-size:9px}}
+@media(max-width:650px){.market-header nav{display:flex;gap:0}.market-header nav a:not(.home-nav-link):not(.contact-nav-link){display:none}.market-header nav .home-nav-link,.market-header nav .contact-nav-link{font-size:9px}}
 
 
 /* Lens & Light brand refinement */
@@ -65,3 +65,18 @@
 /* Public contact page and matching footer contact icons */
 .market-footer{grid-template-columns:1fr auto auto;column-gap:28px}.footer-links{display:flex;align-items:center;gap:20px}.market-footer .footer-social{display:flex;align-items:center;justify-content:flex-end;gap:14px}.footer-social a{width:34px;height:34px;border:1px solid #5a574f;display:inline-flex;align-items:center;justify-content:center;color:#f6f4ef;transition:color .2s,border-color .2s}.footer-social a:hover{color:#c6a77d;border-color:#c6a77d}.contact-page{--ink:#262521;--paper:#f6f4ef;--muted:#77736b;--line:#dedbd2;--gold:#a58b69;background:var(--paper);color:var(--ink);font-family:'DM Sans',Arial,sans-serif;min-height:100vh}.contact-intro{padding:70px 12% 42px}.contact-intro h1{font:400 clamp(48px,5.4vw,72px)/1.06 'Playfair Display',Georgia,serif;letter-spacing:-.05em;margin:0 0 18px}.contact-intro h1 em{color:var(--gold);font-weight:400}.contact-intro>p:last-child{font-size:12px;line-height:1.9;color:var(--muted);max-width:520px}.contact-content{padding:12px 12% 90px;display:grid;grid-template-columns:1fr 1fr;gap:18px}.contact-card{background:#eeece6;padding:27px;min-width:0}.contact-card h2{font:400 24px 'Playfair Display',Georgia,serif;margin:0 0 20px}.contact-row{display:flex;align-items:flex-start;gap:13px;padding:14px 0;border-top:1px solid var(--line);font-size:11px;line-height:1.7;overflow-wrap:anywhere}.contact-row>svg{flex:0 0 auto;color:var(--gold);margin-top:2px}.contact-row a{text-decoration:underline;text-decoration-color:#c5b69f;text-underline-offset:3px}.contact-hours{white-space:pre-line}.contact-social-list{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.contact-social-list a{display:inline-flex;align-items:center;gap:9px;padding:12px 14px;border:1px solid var(--line);font-size:10px}.contact-social-list svg{color:var(--gold)}.contact-loading,.contact-unpublished{grid-column:1/-1;background:#eeece6;padding:24px;font-size:12px;line-height:1.8;color:var(--muted)}
 @media(max-width:650px){.market-footer{grid-template-columns:1fr;gap:18px}.market-footer .footer-links,.market-footer .footer-social{justify-content:flex-start;grid-column:1/-1}.contact-intro{padding:45px 6% 30px}.contact-content{padding:10px 6% 70px;grid-template-columns:1fr}.contact-card{padding:22px}}
+
+
+/* Stable, compact Home + Contact navigation on every small-screen header */
+@media(max-width:650px){
+ .market-header{display:flex;justify-content:space-between;gap:6px;padding-left:4%;padding-right:4%;}
+ .market-header .market-brand{flex:0 1 auto;min-width:0;gap:7px;letter-spacing:.08em;}
+ .market-header .brand-wordmark strong{font-size:11px;letter-spacing:.1em;}
+ .market-header .brand-wordmark small{font-size:6px;letter-spacing:.1em;}
+ .market-header nav{display:flex!important;flex:0 0 auto;align-items:center;gap:5px;margin:0 0 0 auto;white-space:nowrap;}
+ .market-header nav a:not(.home-nav-link):not(.contact-nav-link){display:none!important;}
+ .market-header nav .home-nav-link,.market-header nav .contact-nav-link{display:inline-flex!important;align-items:center;justify-content:center;gap:4px;padding:7px 7px;border:1px solid var(--gold);font-size:9px;line-height:1;white-space:nowrap;}
+ .market-header nav .home-nav-link{border-bottom:1px solid var(--gold);}
+ .market-header .header-cta{display:none!important;}
+}
+@media(max-width:360px){.market-header .market-brand .brand-wordmark small{display:none}.market-header nav .home-nav-link,.market-header nav .contact-nav-link{padding:7px 5px;font-size:8px}}
