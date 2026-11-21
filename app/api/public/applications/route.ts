@@ -187,6 +187,12 @@ export async function POST(request: NextRequest) {
       }, 202);
     }
     const requestId = randomUUID();
+    const errorName = error instanceof Error ? error.name : "UnknownError";
+    console.error("[application-intake] submission failed", {
+      requestId,
+      errorName,
+      databaseCode: code || "unclassified"
+    });
     return noStore({
       error: "Your application could not be saved just now. Please try again later.",
       requestId
