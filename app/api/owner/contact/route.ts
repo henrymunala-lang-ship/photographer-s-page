@@ -21,7 +21,7 @@ const FIELDS = {
 } as const;
 type ContactKey = keyof typeof FIELDS;
 type Contact = Record<ContactKey, string>;
-const defaults: Contact = { email: "henrymunala2@gmail.com", phone: "0711205316", phoneSecondary: "0713120290", whatsapp: "", website: "", address: "", instagram: "https://www.instagram.com/kynekenya/", facebook: "", tiktok: "", hours: "Monday–Friday: 8:00 AM–8:00 PM\nSaturday: 10:00 AM–6:00 PM\nSunday: Closed (EAT)", visibility: "public" };
+const defaults: Contact = { email: "henrymunala2@gmail.com", phone: "0711205316", phoneSecondary: "0713120290", whatsapp: "0705830142", website: "", address: "", instagram: "https://www.instagram.com/kynekenya/", facebook: "", tiktok: "", hours: "Monday–Friday: 8:00 AM–8:00 PM\nSaturday: 10:00 AM–6:00 PM\nSunday: Closed (EAT)", visibility: "public" };
 const descriptions: Record<ContactKey, string> = {
   email: "Public platform contact email", phone: "Public platform phone number", phoneSecondary: "Second public platform phone number", whatsapp: "Public platform WhatsApp number",
   website: "Official platform website", address: "Public business address", instagram: "Official Instagram profile",
@@ -64,7 +64,7 @@ export async function GET() {
     for (const row of rows.slice(1)) {
       if (String(row[headers.indexOf("scope")] ?? "") !== "platform") continue;
       const key = (Object.keys(FIELDS) as ContactKey[]).find(item => FIELDS[item] === String(row[keyIndex] ?? ""));
-      if (key && key !== "whatsapp") contact[key] = String(row[valueIndex] ?? "");
+      if (key) contact[key] = String(row[valueIndex] ?? "");
     }
     return NextResponse.json({ contact, source: "google_sheets", readOnly: true }, { headers: noStore });
   } catch {
