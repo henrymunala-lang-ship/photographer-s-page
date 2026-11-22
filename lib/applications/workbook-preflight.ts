@@ -64,7 +64,7 @@ function compareHeaders(actual: string[], expected: readonly string[]) {
     exact: expected.length === normalized.length &&
       expected.every((value, index) => normalized[index] === value),
     missing: expected.filter((value) => !normalized.includes(value)),
-    unexpected: normalized.filter((value) => value && !expected.includes(value as never))
+    unexpected: normalized.filter((value) => value && !expected.includes(value))
   };
 }
 
@@ -108,7 +108,7 @@ export async function inspectApplicationWorkbookSchema() {
       const value = String(row[0] ?? "").trim();
       if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
     }
-    statusVocabulary = [...counts.entries()]
+    statusVocabulary = Array.from(counts.entries())
       .map(([value, count]) => ({ value, count }))
       .sort((a, b) => a.value.localeCompare(b.value))
       .slice(0, 30);
