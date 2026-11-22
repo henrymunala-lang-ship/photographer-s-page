@@ -325,7 +325,7 @@ export async function syncApplicationsToWorkbook() {
 
   const capped = applications.length === MAX_APPLICATIONS || messagesFromDb.length === MAX_MESSAGES;
   if (!capped) {
-    for (const registrationId of completedRegistrations) {
+    for (const registrationId of Array.from(completedRegistrations)) {
       if (!incompleteRegistrations.has(registrationId)) {
         await sql`UPDATE application_submissions SET workbook_sync_state = 'synced'
           WHERE registration_id = ${registrationId}`;
