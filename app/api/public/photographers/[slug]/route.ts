@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readValues } from "@/lib/integrations/google-sheets/client";
+import { photographerSlug } from "@/lib/photographers/slug";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,11 +30,6 @@ function safeImageUrl(input: string): string | null {
   } catch {
     return null;
   }
-}
-
-function slugPart(input: string): string {
-  return input.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48);
 }
 
 function parseList(input: string): string[] {
@@ -91,7 +87,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
         if (!id || !name) return null;
         return {
           id,
-          slug: `${slugPart(name) || "photographer"}-${slugPart(id).slice(-10)}`,
+          slug: photographerSlug(name, id),
           name,
           bio: value(row, photographerTable.headers, "bio"),
           primaryLocation: value(row, photographerTable.headers, "primary_location"),
