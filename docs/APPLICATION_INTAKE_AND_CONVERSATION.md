@@ -102,3 +102,19 @@ Google Sheets does not enforce unique constraints or provide a multi-worksheet t
 ## Current verified boundary
 
 The Google OAuth integration has previously passed a read-only workbook metadata check, and the public directory API has returned a valid empty result. Those checks do not verify application writes, message writes, email delivery, concurrency safety, or applicant access. No application data or worksheet structure is changed by this document.
+
+
+## Preview workbook sync implementation note — 22 November 2026
+
+The Super Admin-approved status vocabulary for `01_REGISTRATIONS.status` is the exact lowercase set:
+`pending`, `under_review`, `needs_information`, `approved`, `rejected`, and `withdrawn`.
+No status translation or publication-state inference is performed.
+
+The Preview-only sync is an explicit Super Admin action at `/owner/workbook-sync`. It reads from Neon and writes to the Preview workbook only:
+- `01_REGISTRATIONS`: registration ID, applicant contact/location fields, canonical status, submission timestamp and 48-hour target.
+- `23_APPLICATION_DETAILS`: the approved detail fields; normalized service-area JSON remains `[]` until a separately reviewed normalizer exists.
+- `24_APPLICATION_MESSAGES`: message ID, parent registration ID, sender, body and delivery metadata.
+
+The sync checks required headers and duplicate IDs before its first write, preserves other columns in existing registration rows, updates rows by stable ID, and uses the durable `application_operations` uniqueness key to serialize/reconcile retries per payload. A pending operation without a matching workbook row is deferred rather than blindly appended. Failures are recorded for retry. No applicant access token, token hash, encrypted token, or email outbox payload is copied.
+
+The sync is a one-time/manual action, not a background worker. It does not enable continuous synchronization. The user-facing action requires a separate confirmation before any workbook rows are written. Production remains out of scope.
