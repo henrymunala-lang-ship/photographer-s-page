@@ -122,14 +122,14 @@ async function syncEntity(input: {
   key: string;
   registrationId: string;
   payload: unknown;
-  existsInSheet: boolean;
+  alreadyApplied: boolean;
   write: () => Promise<"appended" | "updated" | "unchanged">;
 }) {
   const payloadHash = hash(input.payload);
   const state = await claimOperation(input.key, input.registrationId, payloadHash);
   if (state === "completed") return { state: "completed" as const, action: "already_synced" as const };
   if (state === "busy") {
-    if (input.existsInSheet) {
+    if (input.alreadyApplied) {
       await finishOperation(input.key, "completed");
       return { state: "completed" as const, action: "reconciled" as const };
     }
@@ -231,7 +231,11 @@ export async function syncApplicationsToWorkbook() {
       const registrationResult = await syncEntity({
         key: "workbook-sync:registration:" + registrationId + ":" + hash(registrationData),
         registrationId, payload: registrationData,
-        existsInSheet: registrations.rowById.has(registrationId),
+        alreadyApplied: !changed(
+          registrations.rowById.has(registrationId)
+            ? registrations.rows[registrations.rowById.get(registrationId)! - 2] : undefined,
+          registrationRow
+        ),
         write: () => writeRow("01_REGISTRATIONS", registrations, registrationId, registrationRow)
       });
       if (registrationResult.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
@@ -258,7 +262,11 @@ export async function syncApplicationsToWorkbook() {
       const detailResult = await syncEntity({
         key: "workbook-sync:details:" + registrationId + ":" + hash(detailData),
         registrationId, payload: detailData,
-        existsInSheet: details.rowById.has(registrationId),
+        alreadyApplied: !changed(
+          details.rowById.has(registrationId)
+            ? details.rows[details.rowById.get(registrationId)! - 2] : undefined,
+          detailRow
+        ),
         write: () => writeRow("23_APPLICATION_DETAILS", details, registrationId, detailRow)
       });
       if (detailResult.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
@@ -297,7 +305,11 @@ export async function syncApplicationsToWorkbook() {
       const result = await syncEntity({
         key: "workbook-sync:message:" + messageId + ":" + hash(messageData),
         registrationId, payload: messageData,
-        existsInSheet: messages.rowById.has(messageId),
+        alreadyApplied: !changed(
+          messages.rowById.has(messageId)
+            ? messages.rows[messages.rowById.get(messageId)! - 2] : undefined,
+          messageRow
+        ),
         write: () => writeRow("24_APPLICATION_MESSAGES", messages, messageId, messageRow)
       });
       if (result.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
