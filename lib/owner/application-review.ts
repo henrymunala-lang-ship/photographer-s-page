@@ -209,7 +209,7 @@ export async function reviewApplication(input: {
       const duplicateIdRow = rowNumber(photographerRows, photographerHeaders, "photographer_id", photographerId);
       if (duplicateIdRow && duplicateIdRow !== existingRow) throw new Error("The generated photographer ID is already assigned to another record.");
       const publishIndex = indexOf(photographerHeaders, "publish_state");
-      if (existing && String(existing[publishIndex] ?? "").toUpperCase() === "PUBLISHED" && currentStatus !== "approved") {
+      if (existing && String(existing[publishIndex] ?? "").toUpperCase() === "PUBLISHED") {
         throw new Error("An existing published photographer record needs manual reconciliation before approval.");
       }
       const photographerData: Record<string, unknown> = {
