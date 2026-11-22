@@ -206,6 +206,7 @@ export async function syncApplicationsToWorkbook() {
   };
   const failedIds: string[] = [];
   const completedRegistrations = new Set<string>();
+  const incompleteRegistrations = new Set<string>();
 
   for (const app of applications) {
     const registrationId = String(app.registration_id);
@@ -233,7 +234,7 @@ export async function syncApplicationsToWorkbook() {
         existsInSheet: registrations.rowById.has(registrationId),
         write: () => writeRow("01_REGISTRATIONS", registrations, registrationId, registrationRow)
       });
-      if (registrationResult.state === "deferred") { counts.deferred++; continue; }
+      if (registrationResult.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
       if (registrationResult.action === "appended") counts.registrationsAppended++;
       else if (registrationResult.action === "updated") counts.registrationsUpdated++;
       else counts.alreadyPresent++;
@@ -260,7 +261,7 @@ export async function syncApplicationsToWorkbook() {
         existsInSheet: details.rowById.has(registrationId),
         write: () => writeRow("23_APPLICATION_DETAILS", details, registrationId, detailRow)
       });
-      if (detailResult.state === "deferred") { counts.deferred++; continue; }
+      if (detailResult.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
       if (detailResult.action === "appended") counts.detailsAppended++;
       else if (detailResult.action === "updated") counts.detailsUpdated++;
       else counts.alreadyPresent++;
@@ -268,13 +269,14 @@ export async function syncApplicationsToWorkbook() {
     } catch {
       counts.failed++;
       failedIds.push(registrationId);
+      incompleteRegistrations.add(registrationId);
     }
   }
 
   for (const message of messagesFromDb) {
     const messageId = String(message.message_id);
     const registrationId = String(message.registration_id);
-    if (!completedRegistrations.has(registrationId)) { counts.deferred++; continue; }
+    if (!completedRegistrations.has(registrationId)) { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
     try {
       const createdAt = iso(message.created_at);
       const sentAt = message.sent_at ? iso(message.sent_at) : "";
@@ -298,22 +300,25 @@ export async function syncApplicationsToWorkbook() {
         existsInSheet: messages.rowById.has(messageId),
         write: () => writeRow("24_APPLICATION_MESSAGES", messages, messageId, messageRow)
       });
-      if (result.state === "deferred") { counts.deferred++; continue; }
+      if (result.state === "deferred") { counts.deferred++; incompleteRegistrations.add(registrationId); continue; }
       if (result.action === "appended") counts.messagesAppended++;
       else if (result.action === "updated") counts.messagesUpdated++;
       else counts.alreadyPresent++;
     } catch {
       counts.failed++;
       failedIds.push(messageId);
+      incompleteRegistrations.add(registrationId);
     }
   }
 
-  for (const registrationId of completedRegistrations) {
-    const hasFailed = failedIds.includes(registrationId);
-    if (!hasFailed) {
-      await sql`UPDATE application_submissions SET workbook_sync_state = 'synced'
-        WHERE registration_id = ${registrationId}`;
+  const capped = applications.length === MAX_APPLICATIONS || messagesFromDb.length === MAX_MESSAGES;
+  if (!capped) {
+    for (const registrationId of completedRegistrations) {
+      if (!incompleteRegistrations.has(registrationId)) {
+        await sql`UPDATE application_submissions SET workbook_sync_state = 'synced'
+          WHERE registration_id = ${registrationId}`;
+      }
     }
   }
-  return { ...counts, failedIds: failedIds.slice(0, 20), capped: applications.length === MAX_APPLICATIONS || messagesFromDb.length === MAX_MESSAGES };
+  return { ...counts, failedIds: failedIds.slice(0, 20), capped };
 }
