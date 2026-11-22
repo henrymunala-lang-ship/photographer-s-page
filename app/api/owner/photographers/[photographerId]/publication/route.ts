@@ -39,7 +39,7 @@ export async function POST(request: NextRequest, context: Context) {
 
   try {
     const { photographerId } = await context.params;
-    if (!/^phot_[a-f0-9]{32}$/i.test(photographerId)) {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(photographerId)) {
       return NextResponse.json({ error: "Photographer record not found." }, { status: 404 });
     }
     const payload = await request.json();
