@@ -21,3 +21,23 @@
 .owner-admin-form button,.owner-sidebar button,.owner-shell button{font-weight:700}
 
 .owner-contact-form{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px}.owner-contact-form label{display:grid;gap:7px;font-size:9px;color:#77746c}.owner-contact-form input,.owner-contact-form textarea,.owner-contact-form select{width:100%;padding:12px;border:1px solid #dedbd2;background:#fffefa;color:#272722;font:11px 'DM Sans',sans-serif;outline:none}.owner-contact-form input:focus,.owner-contact-form textarea:focus,.owner-contact-form select:focus{border-color:#a58b69}.owner-contact-wide{grid-column:1/-1}.owner-contact-actions{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.owner-contact-actions span,.owner-contact-message{font-size:9px;color:#77746c}.owner-contact-actions button{margin:0;width:max-content}.owner-contact-actions button:disabled{opacity:.6;cursor:wait}.owner-contact-message{margin:0}@media(max-width:700px){.owner-contact-form{grid-template-columns:1fr}.owner-contact-wide{grid-column:auto}.owner-contact-actions{align-items:flex-start;flex-direction:column}}
+
+/* Read-only application detail inspection */
+.owner-application-open{width:100%;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.owner-application-open:hover{background:#f8f6f0}
+.owner-application-summary{flex:1;min-width:0}
+.owner-application-summary b,.owner-application-summary small{display:block}
+.owner-application-summary b{font-size:10px}
+.owner-application-summary small{font-size:8px;color:var(--om);margin-top:5px;overflow-wrap:anywhere}
+.owner-readonly-label{font-size:9px;color:#78654d;white-space:nowrap}
+.owner-application-detail{margin-top:16px}
+.owner-application-detail .owner-panel-head p:not(.owner-eyebrow){font-size:9px;color:var(--om);margin:6px 0 0}
+.owner-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px 22px;margin-top:20px}
+.owner-detail-grid>div{min-width:0}
+.owner-detail-grid span{display:block;font-size:8px;letter-spacing:.1em;color:var(--om);margin-bottom:7px}
+.owner-detail-grid b,.owner-detail-grid p{font-size:10px;line-height:1.8;margin:0;overflow-wrap:anywhere}
+.owner-detail-grid a{color:#78654d;text-decoration:underline}
+.owner-detail-wide{grid-column:1/-1}
+.owner-detail-readonly{display:flex;align-items:center;gap:8px;border-top:1px solid var(--ol);padding-top:15px;margin:20px 0 0;font-size:9px;color:#78654d}
+.owner-detail-readonly svg{flex:none}
+@media(max-width:700px){.owner-detail-grid{grid-template-columns:1fr}.owner-detail-wide{grid-column:auto}.owner-application-open{align-items:flex-start}.owner-application-open .owner-status-pill{margin-left:46px}.owner-application-open .owner-readonly-label{margin-left:auto}}
