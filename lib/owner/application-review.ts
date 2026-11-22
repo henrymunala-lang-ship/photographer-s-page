@@ -87,7 +87,9 @@ async function claimOperation(key: string, registrationId: string, payloadHash: 
   const retried = await sql`UPDATE application_operations
     SET operation_state = 'started', payload_hash = ${payloadHash},
         attempt_count = attempt_count + 1, updated_at = now(), last_error_code = NULL
-    WHERE idempotency_key = ${key} AND operation_state = 'failed'
+    WHERE idempotency_key = ${key}
+      AND (operation_state = 'failed' OR
+        (operation_state = 'started' AND updated_at < now() - interval '10 minutes'))
     RETURNING idempotency_key`;
   if (retried.length) return "claimed" as const;
   const existing = await sql`SELECT operation_state FROM application_operations
