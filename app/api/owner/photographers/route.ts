@@ -35,7 +35,8 @@ export async function GET() {
       }, { status: 502, headers: { "Cache-Control": "private, no-store" } });
     }
 
-    const photographers = rows.slice(1).filter((row) => row.some((value) => String(value ?? "").trim())).map((row) => ({
+    const populatedRows = rows.slice(1).filter((row) => row.some((value) => String(value ?? "").trim()));
+    const photographers = populatedRows.map((row) => ({
       id: cell(row, headers, "photographer_id"),
       name: cell(row, headers, "public_name"),
       bio: cell(row, headers, "bio"),
@@ -51,6 +52,8 @@ export async function GET() {
       source: "google_sheets",
       readOnly: true,
       count: photographers.length,
+      populatedRowCount: populatedRows.length,
+      headers,
       photographers
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
