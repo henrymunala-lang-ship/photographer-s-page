@@ -94,7 +94,7 @@ export default function PhotographersPage() {
               <p className="photographer-location"><MapPin size={13}/>{photographer.primaryLocation || "Location not specified"}</p>
               <p className="photographer-bio">{photographer.bio || "View this photographer's work and get in touch about your project."}</p>
               <p className="service-areas">{photographer.categories.join(" · ")}</p>
-              <div className="profile-card-bottom"><span>Lens & Light listing</span><span>Profile details coming next</span></div>
+              <div className="profile-card-bottom"><span>Lens & Light listing</span><Link href={`/photographers/${photographer.slug}`}>View profile <ArrowRight size={14}/></Link></div>
             </div>
           </article>;
         })}</div> :
