@@ -64,7 +64,7 @@ function makeSnapshot(values: string[][], key: string): SheetSnapshot {
     if (rowById.has(id)) duplicates.add(id);
     else rowById.set(id, offset + 2);
   });
-  return { headers, rows, rowById, duplicates: [...duplicates] };
+  return { headers, rows, rowById, duplicates: Array.from(duplicates) };
 }
 function valuesFor(headers: string[], source: Record<string, unknown>, existing?: string[]) {
   const row = Array.from({ length: headers.length }, (_, index) => String(existing?.[index] ?? ""));
