@@ -56,12 +56,31 @@ async function readTable(range: string) {
 export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await context.params;
-    const [photographerTable, galleryTable, servicesTable, areasTable] = await Promise.all([
+    const [photographerTable, galleryTable, servicesTable, areasTable, albumsTable] = await Promise.all([
       readTable("'02_PHOTOGRAPHERS'!A1:Z501"),
       readTable("'04_GALLERY'!A1:Z1001"),
       readTable("'05_SERVICES'!A1:Z501"),
-      readTable("'15_PHOTOGRAPHER_SERVICE_AREAS'!A1:Z1001")
+      readTable("'15_PHOTOGRAPHER_SERVICE_AREAS'!A1:Z1001"),
+      readTable("'22_PHOTOGRAPHER_ALBUMS'!A1:Z1001")
     ]);
+
+    const requiredHeaders: Record<string, string[]> = {
+      photographers: ["photographer_id", "public_name", "bio", "primary_location", "categories", "profile_image_url", "hero_image_url", "status", "publish_state"],
+      gallery: ["photo_id", "photographer_id", "album_id", "title", "caption", "image_preview_url", "alt_text", "category", "sort_order", "featured", "publish_state"],
+      services: ["service_id", "photographer_id", "name", "description", "image_url", "publish_state"],
+      serviceAreas: ["photographer_id", "place_name", "county_region", "country", "active"],
+      albums: ["album_id", "photographer_id", "publish_state"]
+    };
+    const tables = { photographers: photographerTable, gallery: galleryTable, services: servicesTable, serviceAreas: areasTable, albums: albumsTable };
+    for (const [tableName, headers] of Object.entries(requiredHeaders)) {
+      const actual = tables[tableName as keyof typeof tables].headers;
+      if (headers.some((header) => !actual.includes(header))) {
+        return NextResponse.json(
+          { error: "Photographer profile data needs administrator attention.", code: "PHOTOGRAPHER_PROFILE_SCHEMA_MISMATCH" },
+          { status: 503, headers: { "Cache-Control": "private, no-store" } }
+        );
+      }
+    }
 
     const photographer = photographerTable.rows
       .filter((row) => value(row, photographerTable.headers, "status").toUpperCase() === "APPROVED")
@@ -90,9 +109,19 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       });
     }
 
+    const publishedAlbumIds = new Set(albumsTable.rows
+      .filter((row) => value(row, albumsTable.headers, "photographer_id") === photographer.id)
+      .filter((row) => isPublished(value(row, albumsTable.headers, "publish_state")))
+      .map((row) => value(row, albumsTable.headers, "album_id"))
+      .filter(Boolean));
+
     const gallery = galleryTable.rows
       .filter((row) => value(row, galleryTable.headers, "photographer_id") === photographer.id)
       .filter((row) => isPublished(value(row, galleryTable.headers, "publish_state")))
+      .filter((row) => {
+        const albumId = value(row, galleryTable.headers, "album_id");
+        return !albumId || publishedAlbumIds.has(albumId);
+      })
       .map((row) => ({
         id: value(row, galleryTable.headers, "photo_id"),
         title: value(row, galleryTable.headers, "title"),
