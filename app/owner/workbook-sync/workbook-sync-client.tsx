@@ -18,6 +18,7 @@ type Result = {
   deferred?: number;
   failed?: number;
   failedIds?: string[];
+  failedIssues?: Array<{ referenceId: string; stage: string; reason: string }>;
 };
 
 export default function WorkbookSyncClient() {
@@ -88,6 +89,19 @@ export default function WorkbookSyncClient() {
             <li>Already present: {result.alreadyPresent ?? 0}; deferred: {result.deferred ?? 0}; failed: {result.failed ?? 0}</li>
           </ul>
           {result.failedIds?.length ? <p>Some records need review. Reference IDs: {result.failedIds.join(", ")}</p> : null}
+          {result.failedIssues?.length ? (
+            <div>
+              <h3>Diagnostic details (Super Admin only)</h3>
+              <ul>
+                {result.failedIssues.map((issue) => (
+                  <li key={issue.referenceId + issue.stage}>
+                    <strong>{issue.stage}</strong> · {issue.referenceId}: {issue.reason}
+                  </li>
+                ))}
+              </ul>
+              <p>Diagnostic text is redacted for common email, URL and token patterns. Do not share it publicly.</p>
+            </div>
+          ) : null}
           <p>Only a completed response confirms the reported rows were synchronized. This is a one-time action, not ongoing sync.</p>
         </section>
       )}
