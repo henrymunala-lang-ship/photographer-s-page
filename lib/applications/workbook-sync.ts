@@ -81,9 +81,9 @@ async function claimOperation(idempotencyKey: string, registrationId: string, pa
   const sql = getDatabase();
   const inserted = await sql`INSERT INTO application_operations
       (idempotency_key, registration_id, payload_hash, operation_state)
-    VALUES (${idempotencyKey}, ${registrationId}, ${payloadHash}, 'pending')
+    VALUES (${idempotencyKey}, ${registrationId}, ${payloadHash}, 'started')
     ON CONFLICT (idempotency_key) DO UPDATE
-      SET operation_state = 'pending', payload_hash = EXCLUDED.payload_hash
+      SET operation_state = 'started', payload_hash = EXCLUDED.payload_hash
       WHERE application_operations.operation_state = 'failed'
     RETURNING idempotency_key`;
   if (inserted.length) return "claimed" as const;
