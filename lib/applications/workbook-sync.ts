@@ -77,6 +77,15 @@ function valuesFor(headers: string[], source: Record<string, unknown>, existing?
 function changed(existing: string[] | undefined, next: string[]) {
   return next.some((value, index) => String(existing?.[index] ?? "") !== value);
 }
+function diagnostic(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error);
+  return raw
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[redacted email]")
+    .replace(/https?:\\/\\/\\S+/gi, "[redacted URL]")
+    .replace(/\\b[A-F0-9]{32,}\\b/gi, "[redacted token]")
+    .replace(/\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b/g, "[redacted token]")
+    .slice(0, 240);
+}
 async function claimOperation(idempotencyKey: string, registrationId: string, payloadHash: string) {
   const sql = getDatabase();
   const inserted = await sql`INSERT INTO application_operations
@@ -205,11 +214,13 @@ export async function syncApplicationsToWorkbook() {
     alreadyPresent: 0, deferred: 0, failed: 0
   };
   const failedIds: string[] = [];
+  const failedIssues: Array<{ referenceId: string; stage: string; reason: string }> = [];
   const completedRegistrations = new Set<string>();
   const incompleteRegistrations = new Set<string>();
 
   for (const app of applications) {
     const registrationId = String(app.registration_id);
+    let stage = "registration";
     try {
       const status = String(app.status ?? "").trim().toLowerCase();
       if (!ALLOWED_STATUSES.has(status)) throw new Error("Unsupported application status.");
@@ -243,6 +254,7 @@ export async function syncApplicationsToWorkbook() {
       else if (registrationResult.action === "updated") counts.registrationsUpdated++;
       else counts.alreadyPresent++;
 
+      stage = "application details";
       const detailData = {
         registration_id: registrationId,
         website_url: cell(app.website_url),
@@ -274,9 +286,10 @@ export async function syncApplicationsToWorkbook() {
       else if (detailResult.action === "updated") counts.detailsUpdated++;
       else counts.alreadyPresent++;
       completedRegistrations.add(registrationId);
-    } catch {
+    } catch (error) {
       counts.failed++;
       failedIds.push(registrationId);
+      failedIssues.push({ referenceId: registrationId, stage, reason: diagnostic(error) });
       incompleteRegistrations.add(registrationId);
     }
   }
@@ -316,9 +329,10 @@ export async function syncApplicationsToWorkbook() {
       if (result.action === "appended") counts.messagesAppended++;
       else if (result.action === "updated") counts.messagesUpdated++;
       else counts.alreadyPresent++;
-    } catch {
+    } catch (error) {
       counts.failed++;
       failedIds.push(messageId);
+      failedIssues.push({ referenceId: messageId, stage: "message", reason: diagnostic(error) });
       incompleteRegistrations.add(registrationId);
     }
   }
@@ -332,5 +346,5 @@ export async function syncApplicationsToWorkbook() {
       }
     }
   }
-  return { ...counts, failedIds: failedIds.slice(0, 20), capped };
+  return { ...counts, failedIds: failedIds.slice(0, 20), failedIssues: failedIssues.slice(0, 20), capped };
 }
