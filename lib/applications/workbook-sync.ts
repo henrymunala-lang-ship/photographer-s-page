@@ -80,13 +80,12 @@ function changed(existing: string[] | undefined, next: string[]) {
 function diagnostic(error: unknown) {
   const raw = error instanceof Error ? error.message : String(error);
   return raw
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, "[redacted email]")
-    .replace(/https?:\\/\\/\\S+/gi, "[redacted URL]")
-    .replace(/\\b[A-F0-9]{32,}\\b/gi, "[redacted token]")
-    .replace(/\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b/g, "[redacted token]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted email]")
+    .replace(/https?:\/\/\S+/gi, "[redacted URL]")
+    .replace(/\b[A-F0-9]{32,}\b/gi, "[redacted token]")
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted token]")
     .slice(0, 240);
-}
-async function claimOperation(idempotencyKey: string, registrationId: string, payloadHash: string) {
+}async function claimOperation(idempotencyKey: string, registrationId: string, payloadHash: string) {
   const sql = getDatabase();
   const inserted = await sql`INSERT INTO application_operations
       (idempotency_key, registration_id, payload_hash, operation_state)
