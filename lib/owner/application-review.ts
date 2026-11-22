@@ -147,9 +147,6 @@ export async function reviewApplication(input: {
   if (currentStatus !== input.decision && !["pending", "under_review", "needs_information"].includes(currentStatus)) {
     throw new Error("This application can no longer be reviewed from its current status.");
   }
-  if (currentStatus === "rejected" || currentStatus === "withdrawn") {
-    throw new Error("This application is not eligible for another review decision.");
-  }
 
   const operationKey = "application-review:" + input.registrationId + ":" + input.decision;
   const payloadHash = digest(JSON.stringify({ registrationId: input.registrationId, decision: input.decision, reason }));
