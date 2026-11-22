@@ -69,6 +69,9 @@ export default function WorkbookMigrationClient() {
         style={{ padding: "12px 18px", borderRadius: 8, border: 0, cursor: busy ? "wait" : "pointer" }}>
         {busy ? "Creating and verifying tabs…" : "Create the two application tabs"}
       </button>
+      <p style={{ marginTop: 20 }}>
+        <a href="/owner/workbook-sync">Continue to the separate, confirmation-protected application sync</a>
+      </p>
       {result && (
         <section aria-live="polite" style={{ border: "1px solid var(--border, #d1d5db)", borderRadius: 12, padding: 20, marginTop: 24 }}>
           {result.ok ? (
