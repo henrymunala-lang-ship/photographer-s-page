@@ -203,9 +203,9 @@ export async function reviewApplication(input: {
     if (input.decision === "rejected") registrationData.rejection_reason = reason;
     if (input.decision === "needs_information" || input.decision === "under_review") registrationData.verification_notes = reason;
     const registrationNext = rowFor(registrationHeaders, registrationData, registrationOld);
-    await appendOnce("01_REGISTRATIONS", registrationHeaders, registrationRows, "registration_id", registrationId, registrationNext);
 
     let photographerId: string | null = null;
+    let photographerNext: SheetRow | null = null;
     if (input.decision === "approved") {
       const existingRow = rowNumber(photographerRows, photographerHeaders, "registration_id", registrationId);
       const existing = existingRow ? photographerRows[existingRow - 1] : undefined;
@@ -234,11 +234,20 @@ export async function reviewApplication(input: {
         created_at: existing?.[indexOf(photographerHeaders, "created_at")] || reviewedAt,
         updated_at: reviewedAt
       };
-      const photographerNext = rowFor(photographerHeaders, photographerData, existing);
-      await appendOnce("02_PHOTOGRAPHERS", photographerHeaders, photographerRows, "registration_id", registrationId, photographerNext);
+      photographerNext = rowFor(photographerHeaders, photographerData, existing);
     }
 
     const eventId = "vev_" + digest(operationKey + ":" + payloadHash).slice(0, 32);
+    const eventExists = rowNumber(eventRows, eventHeaders, "event_id", eventId);
+    const auditId = "audit_" + digest(operationKey + ":" + payloadHash).slice(0, 32);
+    const auditExists = rowNumber(auditRows, auditHeaders, "audit_id", auditId);
+
+    // Validate every target and duplicate key before the first workbook write.
+    await appendOnce("01_REGISTRATIONS", registrationHeaders, registrationRows, "registration_id", registrationId, registrationNext);
+    if (photographerNext) {
+      await appendOnce("02_PHOTOGRAPHERS", photographerHeaders, photographerRows, "registration_id", registrationId, photographerNext);
+    }
+
     const eventRow = rowFor(eventHeaders, {
       event_id: eventId,
       registration_id: registrationId,
@@ -250,14 +259,14 @@ export async function reviewApplication(input: {
       resubmission_of: "",
       created_at: reviewedAt
     });
-    await appendOnce("16_VERIFICATION_EVENTS", eventHeaders, eventRows, "event_id", eventId, eventRow);
+    if (!eventExists) {
+      await appendRows("'16_VERIFICATION_EVENTS'!A:I", [eventRow]);
+    }
 
     await sql`UPDATE application_submissions
       SET status = ${input.decision}, updated_at = now()
       WHERE registration_id = ${registrationId}`;
 
-    const auditId = "audit_" + digest(operationKey + ":" + payloadHash).slice(0, 32);
-    const auditExists = rowNumber(auditRows, auditHeaders, "audit_id", auditId);
     if (!auditExists) {
       const auditRow = rowFor(auditHeaders, {
         audit_id: auditId, actor_type: "admin", actor_id: input.actor.adminId,
