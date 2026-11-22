@@ -28,13 +28,8 @@ export async function GET() {
     const rows = await readValues(RANGE);
     const headers = (rows[0] ?? []).map((value) => String(value ?? "").trim());
     const missing = REQUIRED_HEADERS.filter((header) => !headers.includes(header));
-    if (missing.length) {
-      return NextResponse.json({
-        error: "The photographer worksheet does not match the expected schema.",
-        code: "PHOTOGRAPHER_SCHEMA_MISMATCH"
-      }, { status: 502, headers: { "Cache-Control": "private, no-store" } });
-    }
-
+    // Diagnostics must remain available even when the live worksheet differs
+    // from the expected schema. Missing columns are reported, never guessed.
     const populatedRows = rows.slice(1).filter((row) => row.some((value) => String(value ?? "").trim()));
     const photographers = populatedRows.map((row) => ({
       id: cell(row, headers, "photographer_id"),
@@ -54,6 +49,8 @@ export async function GET() {
       count: photographers.length,
       populatedRowCount: populatedRows.length,
       headers,
+      schemaMatches: missing.length === 0,
+      missingHeaders: missing,
       photographers
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
