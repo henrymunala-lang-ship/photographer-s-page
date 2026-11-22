@@ -89,12 +89,14 @@ async function claimOperation(key: string, registrationId: string, payloadHash: 
         attempt_count = attempt_count + 1, updated_at = now(), last_error_code = NULL
     WHERE idempotency_key = ${key}
       AND (operation_state = 'failed' OR
-        (operation_state = 'started' AND updated_at < now() - interval '10 minutes'))
+        (operation_state = 'started' AND updated_at < now() - interval '10 minutes') OR
+        (operation_state = 'completed' AND payload_hash <> ${payloadHash}))
     RETURNING idempotency_key`;
   if (retried.length) return "claimed" as const;
-  const existing = await sql`SELECT operation_state FROM application_operations
+  const existing = await sql`SELECT operation_state, payload_hash FROM application_operations
     WHERE idempotency_key = ${key} LIMIT 1`;
-  return String(existing[0]?.operation_state ?? "") === "completed"
+  return String(existing[0]?.operation_state ?? "") === "completed" &&
+    String(existing[0]?.payload_hash ?? "") === payloadHash
     ? "completed" as const : "busy" as const;
 }
 async function finishOperation(key: string, state: "completed" | "failed", errorCode?: string) {
@@ -150,7 +152,9 @@ export async function reviewApplication(input: {
     throw new Error("This application can no longer be reviewed from its current status.");
   }
 
-  const operationKey = "application-review:" + input.registrationId + ":" + input.decision;
+  // One operation row per application serializes competing decisions while the payload hash
+  // makes exact retries idempotent and permits a later, distinct decision transition.
+  const operationKey = "application-review:" + input.registrationId;
   const payloadHash = digest(JSON.stringify({ registrationId: input.registrationId, decision: input.decision, reason }));
   const claim = await claimOperation(operationKey, input.registrationId, payloadHash);
   if (claim === "completed") return { state: "already_completed" as const, decision: input.decision };
@@ -234,7 +238,7 @@ export async function reviewApplication(input: {
       await appendOnce("02_PHOTOGRAPHERS", photographerHeaders, photographerRows, "registration_id", registrationId, photographerNext);
     }
 
-    const eventId = "vev_" + digest(operationKey).slice(0, 32);
+    const eventId = "vev_" + digest(operationKey + ":" + payloadHash).slice(0, 32);
     const eventRow = rowFor(eventHeaders, {
       event_id: eventId,
       registration_id: registrationId,
@@ -252,7 +256,7 @@ export async function reviewApplication(input: {
       SET status = ${input.decision}, updated_at = now()
       WHERE registration_id = ${registrationId}`;
 
-    const auditId = "audit_" + digest(operationKey).slice(0, 32);
+    const auditId = "audit_" + digest(operationKey + ":" + payloadHash).slice(0, 32);
     const auditExists = rowNumber(auditRows, auditHeaders, "audit_id", auditId);
     if (!auditExists) {
       const auditRow = rowFor(auditHeaders, {
