@@ -6,6 +6,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST() {
+  if (process.env.VERCEL_ENV !== "preview") {
+    return NextResponse.json({ error: "Workbook sync is restricted to Vercel Preview deployments.", code: "PREVIEW_ONLY" }, {
+      status: 404, headers: { "Cache-Control": "private, no-store" }
+    });
+  }
   const actor = await currentAdmin();
   if (!actor || !can(actor, "admins:manage")) {
     return NextResponse.json({ error: "Super Admin access required.", code: "OWNER_ACCESS_REQUIRED" }, {
