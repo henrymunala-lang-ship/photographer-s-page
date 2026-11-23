@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { readPhotographerRecord, hashPhotographerPassword, hashInvitationToken, newPhotographerAccountId, photographerSessionCookie, photographerCookieOptions, PHOTOGRAPHER_COOKIE } from "@/lib/photographers/auth";
-import { updateValues } from "@/lib/integrations/google-sheets/client";
+import { readValues, batchUpdateValues } from "@/lib/integrations/google-sheets/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,10 +51,18 @@ export async function POST(request: NextRequest) {
       RETURNING account_id, photographer_id, email`;
     if (!created.length) return noStore({ error: "This invitation has already been used. Please sign in or request a new invitation." }, 409);
     try {
-      const next = [...record.row];
-      next[record.headers.indexOf("auth_user_id")] = accountId;
-      next[record.headers.indexOf("updated_at")] = new Date().toISOString();
-      await updateValues("'02_PHOTOGRAPHERS'!A" + record.rowNumber + ":P" + record.rowNumber, [next]);
+      const rows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+      const headers = (rows[0] ?? []).map(value => String(value ?? "").trim());
+      const expected = ["photographer_id","auth_user_id","registration_id","public_name","email","phone","bio","primary_location","categories","profile_image_url","hero_image_url","status","publish_state","membership_tier","created_at","updated_at"];
+      if (headers.length !== expected.length || expected.some((header,index) => headers[index] !== header)) throw new Error("Photographer worksheet schema changed.");
+      const matches = rows.slice(1).map((row,index)=>({row,rowNumber:index+2})).filter(item=>String(item.row[0] ?? "").trim()===photographerId);
+      if (matches.length !== 1) throw new Error("Photographer record is no longer unique.");
+      const current = matches[0];
+      if (String(current.row[1] ?? "").trim() || String(current.row[4] ?? "").trim().toLowerCase() !== email || String(current.row[11] ?? "").trim().toUpperCase() !== "APPROVED") throw new Error("Photographer account link or approval state changed.");
+      await batchUpdateValues([
+        { range: `'02_PHOTOGRAPHERS'!B${current.rowNumber}`, values: [[accountId]] },
+        { range: `'02_PHOTOGRAPHERS'!P${current.rowNumber}`, values: [[new Date().toISOString()]] }
+      ]);
     } catch {
       await sql`UPDATE photographer_accounts SET account_state = 'suspended', updated_at = now() WHERE account_id = ${accountId}`;
       return noStore({ error: "Your account was created but the profile link could not be completed. Contact Lens & Light to finish setup." }, 503);
