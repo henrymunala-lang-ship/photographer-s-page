@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
     if (await consumeLoginLimit(request) > 10) return noStore({ error: "Too many sign-in attempts. Please try again later." }, 429);
     const sql = getDatabase();
-    const rows = await sql`SELECT account_id, photographer_id, email, password_hash, account_state
+    const rows = await sql`SELECT account_id, photographer_id, email, password_hash, account_state, session_version
       FROM photographer_accounts WHERE lower(email) = ${email} LIMIT 1`;
     if (rows.length && String(rows[0].account_state) === "active" && await verifyPhotographerPassword(password, String(rows[0].password_hash))) {
       const accountId = String(rows[0].account_id), photographerId = String(rows[0].photographer_id);
