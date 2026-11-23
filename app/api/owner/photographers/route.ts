@@ -33,6 +33,7 @@ export async function GET() {
     const populatedRows = rows.slice(1).filter((row) => row.some((value) => String(value ?? "").trim()));
     const photographers = populatedRows.map((row) => ({
       id: cell(row, headers, "photographer_id"),
+      email: cell(row, headers, "email"),
       name: cell(row, headers, "public_name"),
       bio: cell(row, headers, "bio"),
       location: cell(row, headers, "primary_location"),
