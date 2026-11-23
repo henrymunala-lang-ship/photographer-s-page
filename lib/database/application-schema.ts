@@ -149,6 +149,8 @@ const statements = [
 
 export async function migrateApplicationDatabase() {
   const sql = getDatabase();
+  const applied = await sql`SELECT version FROM lens_light_schema_migrations WHERE version = ${APPLICATION_SCHEMA_VERSION} LIMIT 1`;
+  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 12 };
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
   await sql`INSERT INTO lens_light_schema_migrations (version)
