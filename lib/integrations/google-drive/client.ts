@@ -13,6 +13,19 @@ function required(name: string): string {
   return value;
 }
 
+function matchesImageSignature(bytes: Buffer, mimeType: string): boolean {
+  if (mimeType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (mimeType === "image/png") {
+    return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if (mimeType === "image/webp") {
+    return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
+  }
+  return false;
+}
+
 async function driveAccessToken(): Promise<string> {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -38,6 +51,12 @@ export async function uploadPhotographerImage(file: File, photographerId: string
     throw new Error("Choose a JPG, PNG or WebP image up to 8 MB.");
   }
 
+  // Do not trust the browser-supplied MIME type alone.
+  const fileBytes = Buffer.from(await file.arrayBuffer());
+  if (!matchesImageSignature(fileBytes, file.type)) {
+    throw new Error("The file contents do not match a supported JPG, PNG or WebP image.");
+  }
+
   const token = await driveAccessToken();
   const boundary = "lenslight_" + crypto.randomUUID().replaceAll("-", "");
   const metadata = {
@@ -45,12 +64,11 @@ export async function uploadPhotographerImage(file: File, photographerId: string
     mimeType: file.type,
     description: `Lens & Light photographer ${kind} image for ${photographerId}`
   };
-  const fileBytes = Buffer.from(await file.arrayBuffer());
   const prefix = Buffer.from(
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${file.type}\r\n\r\n`,
+    `--${boundary}\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n${JSON.stringify(metadata)}\\r\\n--${boundary}\\r\\nContent-Type: ${file.type}\\r\\n\\r\\n`,
     "utf8"
   );
-  const suffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
+  const suffix = Buffer.from(`\\r\\n--${boundary}--`, "utf8");
   const body = Buffer.concat([prefix, fileBytes, suffix]);
 
   const uploadResponse = await fetch(
