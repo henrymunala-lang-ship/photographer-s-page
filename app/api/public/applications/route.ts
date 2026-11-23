@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
+import { migrateApplicationDatabase } from "@/lib/database/application-schema";
 import {
   createApplicationSubmission,
   type ApplicationSubmissionInput
@@ -149,6 +150,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await migrateApplicationDatabase();
     const rate = await consumeRateLimit(request);
     if (rate > 5) return noStore({ error: "Too many application attempts. Please try again later." }, 429);
 
