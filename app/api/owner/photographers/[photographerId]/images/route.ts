@@ -44,16 +44,17 @@ export async function POST(request: NextRequest, context: Context) {
 
     const rows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
     const headers = (rows[0] ?? []).map((value) => String(value ?? "").trim());
-    const required = ["photographer_id", "status"];
-    if (required.some((key) => !headers.includes(key))) {
-      return NextResponse.json({ error: "The photographer worksheet schema could not be verified." }, { status: 409 });
+    const expected = ["photographer_id","auth_user_id","registration_id","public_name","email","phone","bio","primary_location","categories","profile_image_url","hero_image_url","status","publish_state","membership_tier","created_at","updated_at"];
+    if (headers.length !== expected.length || expected.some((header, index) => headers[index] !== header)) {
+      return NextResponse.json({ error: "The photographer worksheet does not match the verified 16-column schema." }, { status: 409 });
     }
-    const idIndex = headers.indexOf("photographer_id");
-    const matches = rows.slice(1).filter((row) => String(row[idIndex] ?? "").trim() === photographerId);
+    const matches = rows.slice(1).map((row, index) => ({ row, rowNumber: index + 2 }))
+      .filter((item) => String(item.row[0] ?? "").trim() === photographerId);
     if (matches.length !== 1) {
       return NextResponse.json({ error: matches.length ? "Duplicate photographer IDs require manual reconciliation." : "Photographer record not found." }, { status: matches.length ? 409 : 404 });
     }
-    if (String(matches[0][headers.indexOf("status")] ?? "").trim().toUpperCase() !== "APPROVED") {
+    const photographer = matches[0].row;
+    if (String(photographer[11] ?? "").trim().toUpperCase() !== "APPROVED") {
       return NextResponse.json({ error: "Only approved photographer profiles can receive uploaded images." }, { status: 409 });
     }
 
