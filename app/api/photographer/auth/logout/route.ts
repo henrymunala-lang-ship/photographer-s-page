@@ -8,5 +8,6 @@ export async function POST(request: NextRequest) {
   } catch { return NextResponse.json({ error: "Invalid request." }, { status: 403 }); }
   const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
   response.cookies.set(PHOTOGRAPHER_COOKIE, "", { ...photographerCookieOptions(), maxAge: 0 });
+  response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, "", { ...photographerApplicantCookieOptions(), maxAge: 0 });
   return response;
 }
