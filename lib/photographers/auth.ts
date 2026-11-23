@@ -10,7 +10,7 @@ export const PHOTOGRAPHER_COOKIE = "ll_photographer_session";
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const HEADERS = ["photographer_id","auth_user_id","registration_id","public_name","email","phone","bio","primary_location","categories","profile_image_url","hero_image_url","status","publish_state","membership_tier","created_at","updated_at"] as const;
 
-export type PhotographerSession = { accountId: string; photographerId: string; email: string; exp: number };
+export type PhotographerSession = { accountId: string; photographerId: string; email: string; exp: number; sessionVersion?: number };
 export type PhotographerRecord = {
   id: string; accountId: string; email: string; name: string; bio: string; location: string;
   categories: string[]; profileImageUrl: string; heroImageUrl: string; status: string; publishState: string;
@@ -85,7 +85,7 @@ export async function getPhotographerSession(request: NextRequest) {
     FROM photographer_accounts WHERE account_id = ${session.accountId} LIMIT 1`;
   if (!accounts.length || String(accounts[0].account_state) !== "active" ||
       String(accounts[0].photographer_id) !== session.photographerId ||
-      String(accounts[0].email).toLowerCase() !== session.email.toLowerCase()) return null;
+      String(accounts[0].email).toLowerCase() !== session.email.toLowerCase() ||\n      Number(accounts[0].session_version ?? 1) !== Number(session.sessionVersion ?? 1)) return null;
   const record = await readPhotographerRecord(session.photographerId);
   if (!record || record.accountId !== session.accountId || record.email !== session.email.toLowerCase()) return null;
   return { ...session, record };
