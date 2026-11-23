@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { can, currentAdmin, appendAudit } from "@/lib/owner/admin-auth";
-import { readValues, updateValues } from "@/lib/integrations/google-sheets/client";
+import { readValues, batchUpdateValues } from "@/lib/integrations/google-sheets/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,27 +80,18 @@ export async function PUT(request: NextRequest, context: Context) {
       return NextResponse.json({ error: "Only approved photographer profiles can be edited." }, { status: 409 });
     }
 
-    const next = [...row];
-    const changes: string[] = [];
-    const set = (key: string, nextValue: string) => {
-      const index = headers.indexOf(key);
-      if (String(row[index] ?? "") !== nextValue) {
-        next[index] = nextValue;
-        changes.push(key);
-      }
-    };
-    set("public_name", publicName);
-    set("bio", bio);
-    set("primary_location", location);
-    set("categories", categories);
-    set("profile_image_url", profileImageUrl);
-    set("hero_image_url", heroImageUrl);
-
+    const fields: Array<[string,string,string]> = [
+      ["D","public_name",publicName],["G","bio",bio],["H","primary_location",location],["I","categories",categories],
+      ["J","profile_image_url",profileImageUrl],["K","hero_image_url",heroImageUrl]
+    ];
+    const changes = fields.filter(([,key,value]) => String(row[headers.indexOf(key)] ?? "") !== value).map(([,key])=>key);
     if (!changes.length) {
       return NextResponse.json({ ok: true, unchanged: true, photographerId }, { headers: { "Cache-Control": "private, no-store" } });
     }
-    next[headers.indexOf("updated_at")] = new Date().toISOString();
-    await updateValues("'02_PHOTOGRAPHERS'!A" + rowNumber + ":P" + rowNumber, [next]);
+    const writes = fields.filter(([,key,value]) => String(row[headers.indexOf(key)] ?? "") !== value)
+      .map(([column,,value]) => ({ range: `'02_PHOTOGRAPHERS'!${column}${rowNumber}`, values: [[value]] }));
+    writes.push({ range: `'02_PHOTOGRAPHERS'!P${rowNumber}`, values: [[new Date().toISOString()]] });
+    await batchUpdateValues(writes);
     await appendAudit(actor, "photographer.profile.updated", "photographer", photographerId, { changedFields: changes });
     return NextResponse.json({
       ok: true,
