@@ -27,7 +27,7 @@ export async function GET() {
 
   try {
     const [rows, accountRows] = await Promise.all([readValues(RANGE), getDatabase()`SELECT photographer_id, account_state FROM photographer_accounts`]);
-    const accounts = new Map(accountRows.map((row) => [String(row.photographer_id), String(row.account_state)]));
+    const accounts = new Map(accountRows.map((row) => [String(row.photographer_id), String(row.account_state)] as const));
     const headers = (rows[0] ?? []).map((value) => String(value ?? "").trim());
     const missing = REQUIRED_HEADERS.filter((header) => !headers.includes(header));
     // Diagnostics must remain available even when the live worksheet differs
