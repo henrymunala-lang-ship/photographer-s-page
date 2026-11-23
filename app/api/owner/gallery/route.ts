@@ -47,7 +47,7 @@ export async function GET(request:NextRequest) {
   } catch(error) { return json({error:error instanceof Error?error.message:"Gallery records could not be loaded."},503); }
 }
 export async function PATCH(request:NextRequest) {
-  const auth=await authorized(request); if("error" in auth)return auth.error;
+  const auth=await authorized(request,true); if("error" in auth)return auth.error;
   if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return json({error:"Invalid request."},415);
   try {
     const body=await request.json(), photoId=typeof body?.photoId==="string"?body.photoId.trim():"", publishState=typeof body?.publishState==="string"?body.publishState.toUpperCase():"";
