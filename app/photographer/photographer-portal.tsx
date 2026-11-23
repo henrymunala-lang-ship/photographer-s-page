@@ -5,7 +5,8 @@ import Link from "next/link";
 type Profile={id:string;slug:string;name:string;email:string;bio:string;location:string;categories:string[];profileImageUrl:string;heroImageUrl:string;status:string;publishState:string};
 type Draft={publicName:string;bio:string;location:string;categories:string};
 type Photo={id:string;title:string;caption:string;imageUrl:string;altText:string;category:string;sortOrder:number};
-type Stage={kind:"profile"|"hero"|"gallery";file:File;url:string;x:number;y:number};
+type Stage={kind:"profile"|"hero"|"gallery"|"gallery-edit";file:File;url:string;x:number;y:number};
+type PhotoEdit={id:string;title:string;caption:string;category:string;altText:string};
 const blank:Draft={publicName:"",bio:"",location:"",categories:""};
 
 function makeCrop(file:File,aspect:number,x:number,y:number):Promise<File>{
@@ -34,6 +35,7 @@ export default function PhotographerPortal(){
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[stageBusy,setStageBusy]=useState(false);
  const [stage,setStage]=useState<Stage|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[galleryMessage,setGalleryMessage]=useState("");
  const [file,setFile]=useState<File|null>(null),[fileUrl,setFileUrl]=useState(""),[title,setTitle]=useState(""),[caption,setCaption]=useState(""),[category,setCategory]=useState("");
+ const [editing,setEditing]=useState<PhotoEdit|null>(null),[editFile,setEditFile]=useState<File|null>(null),[editMessage,setEditMessage]=useState("");
 
  async function loadGallery(){
   const r=await fetch("/api/photographer/gallery",{cache:"no-store"}),d=await r.json();
@@ -65,14 +67,16 @@ export default function PhotographerPortal(){
    const aspect=stage.kind==="profile"?1:stage.kind==="hero"?16/9:4/3;
    const prepared=await makeCrop(stage.file,aspect,stage.x,stage.y),form=new FormData();
    form.set("image",prepared);form.set("kind",stage.kind);
-   const galleryMode=stage.kind==="gallery",url=galleryMode?"/api/photographer/gallery":"/api/photographer/profile/images";
-   if(galleryMode){form.set("title",title.trim());form.set("caption",caption.trim());form.set("altText",title.trim()||"Portfolio photograph");form.set("category",category.trim());}
-   const r=await fetch(url,{method:"POST",body:form}),d=await r.json();
+   const galleryMode=stage.kind==="gallery"||stage.kind==="gallery-edit",editingMode=stage.kind==="gallery-edit",url=galleryMode?"/api/photographer/gallery":"/api/photographer/profile/images";
+   if(stage.kind==="gallery"){form.set("title",title.trim());form.set("caption",caption.trim());form.set("altText",title.trim()||"Portfolio photograph");form.set("category",category.trim());}
+   if(editingMode&&editing){form.set("photoId",editing.id);form.set("title",editing.title);form.set("caption",editing.caption);form.set("altText",editing.altText);form.set("category",editing.category);}
+   const r=await fetch(url,{method:editingMode?"PUT":"POST",body:form}),d=await r.json();
    if(!r.ok)throw new Error(d.error||"Image could not be saved.");
    if(galleryMode){
-    setGallery(v=>[...v,d.photo].sort((a,b)=>a.sortOrder-b.sortOrder));setTitle("");setCaption("");setCategory("");setGalleryMessage("Photograph added and now visible on your public profile.");
+    if(editingMode){setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage("Portfolio photograph updated and remains visible on your public profile.");}
+    else{setGallery(v=>[...v,d.photo].sort((a,b)=>a.sortOrder-b.sortOrder));setTitle("");setCaption("");setCategory("");setGalleryMessage("Photograph added and now visible on your public profile.");
     if(fileUrl)URL.revokeObjectURL(fileUrl);setFileUrl("");setFile(null);
-   }else{
+   }}else{
     const key=stage.kind==="profile"?"profileImageUrl":"heroImageUrl";
     setProfile(v=>v?{...v,[key]:d.url}:v);setMessage(stage.kind==="profile"?"Your new profile picture is live.":"Your new cover photo is live.");
    }
@@ -96,6 +100,11 @@ export default function PhotographerPortal(){
   if(!f)return;
   if(f.size<1||f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type)){setGalleryMessage("Choose a JPG, PNG or WebP image up to 8 MB.");return;}
   setFile(f);setFileUrl(URL.createObjectURL(f));setGalleryMessage("");
+ }
+ async function savePhotoEdit(e:React.FormEvent){
+  e.preventDefault();if(!editing||busy)return;setEditMessage("");
+  if(editFile){choose("gallery-edit",editFile);return;}
+  setBusy(true);try{const form=new FormData();form.set("photoId",editing.id);form.set("title",editing.title.trim());form.set("caption",editing.caption.trim());form.set("altText",editing.altText.trim());form.set("category",editing.category.trim());const r=await fetch("/api/photographer/gallery",{method:"PUT",body:form}),d=await r.json();if(!r.ok)throw new Error(d.error||"Portfolio edit could not be saved.");setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage("Portfolio details updated.");}catch(e){setEditMessage(e instanceof Error?e.message:"Portfolio edit could not be saved.");}finally{setBusy(false);}
  }
  async function removePhoto(id:string){
   if(!window.confirm("Remove this photograph from your public portfolio? The stored original will be retained."))return;
@@ -165,7 +174,7 @@ export default function PhotographerPortal(){
      {gallery.length===0?<div style={emptyGallery}>Your portfolio is ready for its first photograph. Choose an image above to get started.</div>:<div style={galleryGrid}>{gallery.map((p,i)=><article key={p.id} style={galleryCard}>
       <img src={p.imageUrl} alt={p.altText||p.title||"Portfolio photograph"} style={{width:"100%",aspectRatio:"4 / 3",objectFit:"cover"}}/>
       <div style={{padding:12}}><strong>{p.title||"Untitled photograph"}</strong>{p.category&&<p style={note}>{p.category}</p>}{p.caption&&<p style={note}>{p.caption}</p>}
-       <div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
+       {editing?.id===p.id&&<form onSubmit={savePhotoEdit} style={{display:"grid",gap:8,marginTop:10}}><label style={label}>Title<input style={input} value={editing.title} maxLength={120} onChange={e=>setEditing(v=>v?{...v,title:e.target.value}:v)}/></label><label style={label}>Caption<textarea style={{...input,minHeight:65}} value={editing.caption} maxLength={500} onChange={e=>setEditing(v=>v?{...v,caption:e.target.value}:v)}/></label><label style={label}>Category<input style={input} value={editing.category} maxLength={80} onChange={e=>setEditing(v=>v?{...v,category:e.target.value}:v)}/></label><label style={label}>Replace image (optional)<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&(f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type))){setEditMessage("Choose a JPG, PNG or WebP image up to 8 MB.");}else setEditFile(f||null);e.currentTarget.value="";}}/></label><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><button type="submit" style={primary} disabled={busy}>Save changes{editFile?" and crop image":""}</button><button type="button" style={secondary} onClick={()=>{setEditing(null);setEditFile(null);}}>Cancel</button></div>{editMessage&&<p role="status" style={note}>{editMessage}</p>}</form>}<div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy} onClick={()=>{setEditing({id:p.id,title:p.title,caption:p.caption,category:p.category,altText:p.altText});setEditFile(null);setEditMessage("");}}>Edit</button><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
       </div>
      </article>)}</div>}
     </section>
