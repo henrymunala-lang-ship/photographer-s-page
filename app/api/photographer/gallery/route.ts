@@ -126,6 +126,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    if(!sameOrigin(request))return noStore({error:"Invalid request origin."},403);
+    const auth=await verifiedSession(request);
+    if("error" in auth)return auth.error;
+    if(!request.headers.get("content-type")?.toLowerCase().includes("multipart/form-data"))return noStore({error:"Invalid edit request."},415);
+    const form=await request.formData();
+    const photoId=String(form.get("photoId")??"").trim();
+    const title=String(form.get("title")??"").trim(),caption=String(form.get("caption")??"").trim();
+    const altText=String(form.get("altText")??"").trim(),category=String(form.get("category")??"").trim();
+    const image=form.get("image");
+    if(!/^[A-Za-z0-9_-]{1,128}$/.test(photoId)||title.length>120||caption.length>500||altText.length>240||category.length>80)return noStore({error:"Please check the photo and shorten its details if needed."},400);
+    if(image!==null&&(!(image instanceof File)||image.size<1||image.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(image.type)))return noStore({error:"Choose a JPG, PNG or WebP image up to 8 MB."},400);
+    const {headers,rows}=await galleryTable();
+    const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>value(x.row,headers,"photo_id")===photoId&&value(x.row,headers,"photographer_id")===auth.session.record.id&&value(x.row,headers,"publish_state").toUpperCase()==="PUBLISHED");
+    if(matches.length!==1)return noStore({error:"That published portfolio photograph could not be found."},404);
+    const match=matches[0];
+    let imageUrl=value(match.row,headers,"image_preview_url"),fileId="";
+    if(image instanceof File){const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");imageUrl=uploaded.url;fileId=uploaded.fileId;}
+    await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category,image_preview_url:imageUrl}));
+    await audit(auth.session,"photographer.gallery_photo.edited",photoId,{imageReplaced:!!fileId,fileId,category});
+    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl,altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0}});
+  }catch{return noStore({error:"Your portfolio edit could not be saved. The existing photograph remains unchanged."},503);}
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     if(!sameOrigin(request))return noStore({error:"Invalid request origin."},403);
