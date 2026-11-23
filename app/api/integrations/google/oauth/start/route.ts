@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { NextResponse } from "next/server";
 import { createOAuthState, googleOAuthStateCookie } from "@/lib/integrations/google-oauth/state";
+import { can, currentAdmin } from "@/lib/owner/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,16 +11,15 @@ function required(name: string): string {
   return value;
 }
 
-export async function POST(request: NextRequest) {
-  const form = await request.formData();
-  const submittedKey = String(form.get("setupKey") ?? "");
-  const configuredKey = process.env.GOOGLE_OAUTH_SETUP_KEY ?? "";
-
-  if (!configuredKey || configuredKey.length < 32 || submittedKey.length !== configuredKey.length) {
-    return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
-  }
-  if (!timingSafeEqual(Buffer.from(submittedKey), Buffer.from(configuredKey))) {
-    return NextResponse.json({ error: "Owner setup is not enabled or the setup key is invalid." }, { status: 403 });
+export async function POST() {
+  // Reuse the existing, independently authenticated Super Admin session.
+  // This removes the forgotten bootstrap key without weakening owner access.
+  const actor = await currentAdmin();
+  if (!actor || !can(actor, "admins:manage")) {
+    return NextResponse.json({ error: "An active Super Admin session is required." }, {
+      status: 403,
+      headers: { "Cache-Control": "private, no-store" }
+    });
   }
 
   const { state, challenge, cookieValue } = createOAuthState();
