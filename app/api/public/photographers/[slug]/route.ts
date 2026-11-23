@@ -112,7 +112,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     if (!photographer) {
       return NextResponse.json({ error: "Photographer profile not found.", code: "PHOTOGRAPHER_NOT_FOUND" }, {
         status: 404,
-        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" }
+        headers: { "Cache-Control": "public, max-age=0, s-maxage=0, must-revalidate" }
       });
     }
 
