@@ -173,12 +173,39 @@ export async function createApplicationSubmission(
   const existing = await sql`SELECT registration_id, payload_hash
     FROM application_submissions WHERE idempotency_key = ${idempotencyKey} LIMIT 1`;
   if (!existing.length) {
-    const duplicate = await sql`SELECT registration_id
+    const duplicate = await sql`SELECT registration_id, payload_hash
       FROM application_submissions
       WHERE applicant_email_hash = ${emailFingerprint(normalizedEmail)}
         AND status IN ('pending','under_review','needs_information','approved')
       LIMIT 1`;
-    if (duplicate.length) return { created: false, duplicate: true as const };
+    if (duplicate.length) {
+      const duplicateId = String(duplicate[0].registration_id);
+      if (String(duplicate[0].payload_hash).trim() !== payloadHash) return { created: false, duplicate: true as const };
+      const accounts = await sql`SELECT account_id FROM photographer_applicant_accounts WHERE registration_id = ${duplicateId} LIMIT 1`;
+      if (accounts.length) return { created: false, duplicate: true as const };
+      const replaySetup = randomBytes(32).toString("base64url");
+      const replaySetupHash = hash(replaySetup);
+      const replaySetupExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+      await sql`UPDATE photographer_account_setup_tokens SET revoked_at = now()
+        WHERE registration_id = ${duplicateId} AND used_at IS NULL AND revoked_at IS NULL`;
+      await sql`INSERT INTO photographer_account_setup_tokens (token_id, registration_id, token_hash, expires_at)
+        VALUES (${randomUUID()}, ${duplicateId}, ${replaySetupHash}, ${replaySetupExpiry}::timestamptz)`;
+      const encryptedReplaySetup = encryptAccessToken(replaySetup);
+      await sql`UPDATE application_outbox SET payload = jsonb_set(payload, '{encryptedAccountSetupToken}', to_jsonb(${encryptedReplaySetup}::text), true)
+        WHERE registration_id = ${duplicateId} AND event_type = 'application.acknowledgement_email'`;
+      const priorLinks = await sql`SELECT payload->>'encryptedAccessToken' AS encrypted_access_token
+        FROM application_outbox WHERE registration_id = ${duplicateId} AND event_type = 'application.acknowledgement_email'
+        ORDER BY created_at DESC LIMIT 1`;
+      const priorEncrypted = String(priorLinks[0]?.encrypted_access_token ?? "");
+      const priorToken = priorEncrypted ? decryptAccessToken(priorEncrypted) : "";
+      return {
+        created: false, registrationId: duplicateId,
+        ...(priorToken ? { accessLink: "/application/updates#access=" + encodeURIComponent(priorToken) } : {}),
+        accountSetupLink: "/photographer/setup#token=" + encodeURIComponent(replaySetup),
+        accountSetupLinkExpiresAt: replaySetupExpiry,
+        idempotentReplay: true as const
+      };
+    }
     throw new Error("The application submission could not be committed.");
   }
   if (String(existing[0].payload_hash).trim() !== payloadHash) {
