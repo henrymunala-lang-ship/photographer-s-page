@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { can, currentAdmin, appendAudit } from "@/lib/owner/admin-auth";
-import { readValues } from "@/lib/integrations/google-sheets/client";
+import { readValues, batchUpdateValues } from "@/lib/integrations/google-sheets/client";
 import { uploadPhotographerImage } from "@/lib/integrations/google-drive/client";
 
 export const runtime = "nodejs";
@@ -59,12 +59,25 @@ export async function POST(request: NextRequest, context: Context) {
     }
 
     const uploaded = await uploadPhotographerImage(image, photographerId, kind);
+
+    // Persist the new Drive URL immediately. Uploading a file without updating
+    // the photographer row leaves the public directory pointing at the old image.
+    const rowNumber = matches[0].rowNumber;
+    const imageColumn = kind === "profile" ? "J" : "K";
+    await batchUpdateValues([
+      { range: `'02_PHOTOGRAPHERS'!${imageColumn}${rowNumber}`, values: [[uploaded.url]] },
+      { range: `'02_PHOTOGRAPHERS'!P${rowNumber}`, values: [[new Date().toISOString()]] }
+    ]);
+
     await appendAudit(actor, "photographer.image.uploaded", "photographer", photographerId, {
       imageKind: kind,
       storage: "google_drive",
-      fileId: uploaded.fileId
+      fileId: uploaded.fileId,
+      savedToPhotographerRecord: true
     });
-    return NextResponse.json({ ok: true, kind, url: uploaded.url }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ ok: true, kind, url: uploaded.url, savedToProfile: true }, {
+      headers: { "Cache-Control": "private, no-store" }
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Image upload failed.";
     return NextResponse.json({ error: message }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
