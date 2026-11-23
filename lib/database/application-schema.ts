@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v4-photographer-self-service-accounts";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v5-photographer-password-recovery";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -93,6 +93,20 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS application_outbox_due_idx
     ON application_outbox (state, next_attempt_at, created_at)`,
+  `ALTER TABLE photographer_accounts ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 1`,
+  `CREATE TABLE IF NOT EXISTS photographer_password_reset_tokens (
+    token_id text PRIMARY KEY,
+    account_id text NOT NULL REFERENCES photographer_accounts(account_id) ON DELETE CASCADE,
+    token_hash char(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_by text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS photographer_password_reset_active_idx
+    ON photographer_password_reset_tokens (account_id, expires_at)
+    WHERE used_at IS NULL AND revoked_at IS NULL`,
   `CREATE TABLE IF NOT EXISTS photographer_accounts (
     account_id text PRIMARY KEY,
     photographer_id text NOT NULL UNIQUE,
@@ -150,7 +164,7 @@ const statements = [
 export async function migrateApplicationDatabase() {
   const sql = getDatabase();
   const applied = await sql`SELECT version FROM lens_light_schema_migrations WHERE version = ${APPLICATION_SCHEMA_VERSION} LIMIT 1`;
-  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 12 };
+  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 13 };
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
   await sql`INSERT INTO lens_light_schema_migrations (version)
