@@ -218,9 +218,15 @@ export async function reviewApplication(input: {
       if (existing && String(existing[publishIndex] ?? "").toUpperCase() === "PUBLISHED") {
         throw new Error("An existing published photographer record needs manual reconciliation before approval.");
       }
+      const applicantAccountRows = await sql`SELECT account_id
+        FROM photographer_applicant_accounts
+        WHERE registration_id = ${registrationId}
+          AND account_state IN ('active','converted')
+        LIMIT 1`;
+      const linkedAccountId = String(applicantAccountRows[0]?.account_id ?? existing?.[indexOf(photographerHeaders, "auth_user_id")] ?? "");
       const photographerData: Record<string, unknown> = {
         photographer_id: photographerId,
-        auth_user_id: existing?.[indexOf(photographerHeaders, "auth_user_id")] ?? "",
+        auth_user_id: linkedAccountId,
         registration_id: registrationId,
         public_name: application.applicant_name,
         email: application.applicant_email,
@@ -266,6 +272,18 @@ export async function reviewApplication(input: {
     await sql`UPDATE application_submissions
       SET status = ${input.decision}, updated_at = now()
       WHERE registration_id = ${registrationId}`;
+
+    if (input.decision === "approved" && photographerId) {
+      await sql`INSERT INTO photographer_accounts (account_id, photographer_id, email, password_hash)
+        SELECT account_id, ${photographerId}, email, password_hash
+        FROM photographer_applicant_accounts
+        WHERE registration_id = ${registrationId}
+          AND account_state IN ('active','converted')
+        ON CONFLICT (account_id) DO NOTHING`;
+      await sql`UPDATE photographer_applicant_accounts
+        SET account_state = 'converted', updated_at = now()
+        WHERE registration_id = ${registrationId} AND account_state = 'active'`;
+    }
 
     if (!auditExists) {
       const auditRow = rowFor(auditHeaders, {
