@@ -20,11 +20,11 @@ async function table() {
   if(REQUIRED.some(h=>!headers.includes(h))) throw new Error("The 04_GALLERY worksheet does not match the verified gallery schema.");
   return {headers,rows:values.slice(1)};
 }
-async function authorized(request:NextRequest) {
+async function authorized(request:NextRequest, requireOrigin=false) {
   if(process.env.VERCEL_ENV!=="preview") return {error:json({error:"Gallery moderation is restricted to Preview deployments."},404)};
   const actor=await currentAdmin();
   if(!actor||!can(actor,"gallery:publish")) return {error:json({error:"Gallery moderation permission required."},403)};
-  if(!sameOrigin(request)) return {error:json({error:"Invalid request origin."},403)};
+  if(requireOrigin&&!sameOrigin(request)) return {error:json({error:"Invalid request origin."},403)};
   return {actor};
 }
 export async function GET(request:NextRequest) {
