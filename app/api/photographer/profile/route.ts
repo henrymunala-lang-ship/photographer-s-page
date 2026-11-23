@@ -20,6 +20,7 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" } });
 }
 export async function GET(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") return noStore({ error: "Photographer accounts are restricted to Preview deployments." }, 404);
   try {
     const session = await getPhotographerSession(request);
     if (!session) return noStore({ error: "Photographer sign-in is required." }, 401);
