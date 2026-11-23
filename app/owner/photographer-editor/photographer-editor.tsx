@@ -70,7 +70,7 @@ export default function PhotographerEditor() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Image upload failed.");
       setDraft(current => ({ ...current, [kind === "profile" ? "profileImageUrl" : "heroImageUrl"]: data.url }));
-      setMessage((kind === "profile" ? "Profile photo" : "Cover photo") + " uploaded to Google Drive. Save the profile to apply it.");
+      setMessage((kind === "profile" ? "Profile photo" : "Cover photo") + " uploaded successfully and stored in Google Drive. Its shareable image link is ready; click Save profile changes to attach it to the photographer profile.");
     } catch (e) { setError(e instanceof Error ? e.message : "Image upload failed."); }
     finally { setUploading(null); }
   }
@@ -94,7 +94,7 @@ export default function PhotographerEditor() {
         categories: draft.categories.split(",").map(value => value.trim()).filter(Boolean),
         profileImageUrl: draft.profileImageUrl, heroImageUrl: draft.heroImageUrl
       } : item));
-      setMessage(data.unchanged ? "No changes to save." : "Profile saved. Its approval and publication settings were left unchanged.");
+      setMessage(data.unchanged ? "No profile changes were needed. The saved image links are unchanged." : "Profile changes saved successfully. The image links are now attached to this photographer profile. Approval and publication settings were left unchanged.");
     } catch (e) { setError(e instanceof Error ? e.message : "Profile could not be saved."); }
     finally { setSaving(false); }
   }
@@ -107,7 +107,10 @@ export default function PhotographerEditor() {
         <div><p className="owner-eyebrow">DIRECTORY MANAGEMENT</p><h1 style={{ fontSize: 38 }}>Edit photographer <em>profiles.</em></h1></div>
         <Link href="/owner" className="owner-secondary">← Owner workspace</Link>
       </div>
-      <p>Edit approved photographer information and images. Uploads are stored in the connected Google Drive and linked to the existing profile.</p>
+      <p>Edit approved photographer information and images. Uploaded images are stored in the connected Google Drive and receive a shareable link for the public photographer profile.</p>
+      {(uploading || message || error) && <div role={error ? "alert" : "status"} aria-live="polite" style={{ margin: "18px 0", padding: "16px 18px", border: error ? "1px solid #b42318" : "1px solid #8b9b83", background: error ? "#fff4f2" : "#f3f7f1", color: error ? "#8f1d14" : "#263d29", borderRadius: 8 }}>
+        {uploading ? <><strong>Uploading {uploading === "hero" ? "cover image" : "profile photo"}…</strong><p style={{ margin: "6px 0 0" }}>Please keep this page open. We will confirm when Google Drive has stored the image.</p></> : error ? <><strong>We could not complete that action.</strong><p style={{ margin: "6px 0 0" }}>{error}</p></> : <><strong>{message}</strong></>}
+      </div>}
       {loading ? <p>Loading photographer records…</p> : error && !rows.length ? <p role="alert" className="owner-error">{error}</p> : <>
         <label>Choose photographer</label>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by name, location or ID" />
@@ -131,7 +134,7 @@ export default function PhotographerEditor() {
                 <input type="url" value={draft[key]} onChange={e => field(key, e.target.value)} placeholder="https://…" />
                 <label style={{ marginTop: 12 }}>Or upload from this device</label>
                 <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading !== null} onChange={e => { const file = e.target.files?.[0]; void upload(kind, file); e.currentTarget.value = ""; }} />
-                <small>JPG, PNG or WebP · Maximum 8 MB · Stored in Google Drive</small>
+                <small>JPG, PNG or WebP · Maximum 8 MB · Stored in Google Drive. Uploaded images are made viewable by anyone with the link so they can appear on the public website.</small>
                 {uploading === kind && <p>Uploading to Drive…</p>}
               </section>;
             })}
@@ -140,8 +143,6 @@ export default function PhotographerEditor() {
             <button className="owner-primary" disabled={saving || uploading !== null}>{saving ? "Saving profile…" : "Save profile changes"}</button>
             <span className="owner-status-pill">{selected.status} · {selected.publishState}</span>
           </div>
-          {message && <p role="status" className="owner-contact-message">{message}</p>}
-          {error && <p role="alert" className="owner-error">{error}</p>}
           <p style={{ fontSize: 12, color: "#77736d", lineHeight: 1.7 }}>Saving updates only the name, biography, location, categories and image links. Approval status, publication state, membership tier and account identifiers are preserved.</p>
         </form>}
       </>}
