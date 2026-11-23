@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v3-photographer-accounts";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v4-photographer-self-service-accounts";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -103,6 +103,28 @@ const statements = [
     updated_at timestamptz NOT NULL DEFAULT now(),
     last_login_at timestamptz
   )`,
+  `CREATE TABLE IF NOT EXISTS photographer_applicant_accounts (
+    account_id text PRIMARY KEY,
+    registration_id text NOT NULL UNIQUE REFERENCES application_submissions(registration_id) ON DELETE CASCADE,
+    email text NOT NULL UNIQUE,
+    password_hash text NOT NULL,
+    account_state text NOT NULL DEFAULT 'active' CHECK (account_state IN ('active','suspended','converted')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    last_login_at timestamptz
+  )`,
+  `CREATE TABLE IF NOT EXISTS photographer_account_setup_tokens (
+    token_id text PRIMARY KEY,
+    registration_id text NOT NULL REFERENCES application_submissions(registration_id) ON DELETE CASCADE,
+    token_hash char(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS photographer_account_setup_tokens_active_idx
+    ON photographer_account_setup_tokens (registration_id, expires_at)
+    WHERE used_at IS NULL AND revoked_at IS NULL`,
   `CREATE TABLE IF NOT EXISTS photographer_invitations (
     invitation_id text PRIMARY KEY,
     photographer_id text NOT NULL,
@@ -143,6 +165,8 @@ export async function migrateApplicationDatabase() {
         'application_outbox',
         'application_rate_limits',
         'photographer_accounts',
+        'photographer_applicant_accounts',
+        'photographer_account_setup_tokens',
         'photographer_invitations'
       ])`;
   const found = new Set(rows.map((row) => String(row.table_name)));
@@ -156,6 +180,8 @@ export async function migrateApplicationDatabase() {
     "application_outbox",
     "application_rate_limits",
     "photographer_accounts",
+    "photographer_applicant_accounts",
+    "photographer_account_setup_tokens",
     "photographer_invitations"
   ];
   const missing = expected.filter((table) => !found.has(table));
