@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPhotographerSession } from "@/lib/photographers/auth";
 import { uploadPhotographerImage } from "@/lib/integrations/google-drive/client";
-import { updateValues, appendRows } from "@/lib/integrations/google-sheets/client";
+import { readValues, batchUpdateValues, appendRows } from "@/lib/integrations/google-sheets/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,12 +23,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Choose a JPG, PNG or WebP image up to 8 MB." }, { status: 400 });
     }
     const p = session.record;
+    const rows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+    const headers = (rows[0] ?? []).map(value => String(value ?? "").trim());
+    const expected = ["photographer_id","auth_user_id","registration_id","public_name","email","phone","bio","primary_location","categories","profile_image_url","hero_image_url","status","publish_state","membership_tier","created_at","updated_at"];
+    if (headers.length !== expected.length || expected.some((header,index) => headers[index] !== header)) throw new Error("Photographer worksheet schema changed.");
+    const matches = rows.slice(1).map((row,index)=>({row,rowNumber:index+2})).filter(item=>String(item.row[0] ?? "").trim()===p.id);
+    if (matches.length !== 1) return NextResponse.json({ error: "Your photographer record could not be uniquely verified." }, { status: 409 });
+    const current = matches[0];
+    if (String(current.row[1] ?? "").trim() !== session.accountId || String(current.row[4] ?? "").trim().toLowerCase() !== session.email.toLowerCase() || String(current.row[11] ?? "").trim().toUpperCase() !== "APPROVED") {
+      return NextResponse.json({ error: "Your account is no longer linked to an approved photographer profile." }, { status: 409 });
+    }
     const uploaded = await uploadPhotographerImage(image, p.id, kind);
+    const column = kind === "profile" ? "J" : "K";
     const key = kind === "profile" ? "profile_image_url" : "hero_image_url";
-    const next = [...p.row];
-    next[p.headers.indexOf(key)] = uploaded.url;
-    next[p.headers.indexOf("updated_at")] = new Date().toISOString();
-    await updateValues("'02_PHOTOGRAPHERS'!A" + p.rowNumber + ":P" + p.rowNumber, [next]);
+    const now = new Date().toISOString();
+    await batchUpdateValues([
+      { range: `'02_PHOTOGRAPHERS'!${column}${current.rowNumber}`, values: [[uploaded.url]] },
+      { range: `'02_PHOTOGRAPHERS'!P${current.rowNumber}`, values: [[now]] }
+    ]);
     await appendRows("'14_AUDIT_LOG'!A:I", [[
       "audit_" + randomBytes(12).toString("hex"), "photographer", session.accountId,
       "photographer.image.updated", "photographer", p.id,
