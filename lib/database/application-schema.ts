@@ -141,7 +141,9 @@ export async function migrateApplicationDatabase() {
         'applicant_access_tokens',
         'application_operations',
         'application_outbox',
-        'application_rate_limits'
+        'application_rate_limits',
+        'photographer_accounts',
+        'photographer_invitations'
       ])`;
   const found = new Set(rows.map((row) => String(row.table_name)));
   const expected = [
@@ -152,7 +154,9 @@ export async function migrateApplicationDatabase() {
     "applicant_access_tokens",
     "application_operations",
     "application_outbox",
-    "application_rate_limits"
+    "application_rate_limits",
+    "photographer_accounts",
+    "photographer_invitations"
   ];
   const missing = expected.filter((table) => !found.has(table));
   if (missing.length) throw new Error("Application database schema verification failed.");
