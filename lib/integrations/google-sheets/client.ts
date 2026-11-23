@@ -168,6 +168,17 @@ export async function updateValues(
     { method: "PUT", body: JSON.stringify({ majorDimension: "ROWS", values }) }
   );
 }
+export async function batchUpdateValues(
+  data: Array<{ range: string; values: Array<Array<string | number | boolean | null>> }>
+): Promise<{ totalUpdatedCells?: number }> {
+  if (data.length === 0) throw new Error("Refusing to submit an empty values batch.");
+  const id = encodeURIComponent(getSpreadsheetId());
+  return sheetsRequest(
+    `/spreadsheets/${id}/values:batchUpdate`,
+    { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data: data.map(item => ({ range: item.range, majorDimension: "ROWS", values: item.values })) }) }
+  );
+}
+
 export async function batchUpdateSpreadsheet(
   requests: Array<Record<string, unknown>>
 ): Promise<{ replies?: unknown[] }> {
