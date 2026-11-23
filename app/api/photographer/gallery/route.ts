@@ -40,7 +40,6 @@ function rowWrites(headers: string[], rowNumber: number, fields: Record<string,s
 }
 async function verifiedSession(request: NextRequest) {
   if (process.env.VERCEL_ENV !== "preview") return { error: noStore({ error: "Photographer gallery editing is restricted to Preview deployments." }, 404) };
-  if (!sameOrigin(request)) return { error: noStore({ error: "Invalid request origin." }, 403) };
   const session = await getPhotographerSession(request);
   if (!session) return { error: noStore({ error: "Photographer sign-in is required." }, 401) };
   const photographers = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
@@ -93,6 +92,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!sameOrigin(request)) return noStore({error:"Invalid request origin."},403);
     const auth = await verifiedSession(request);
     if ("error" in auth) return auth.error;
     if (!request.headers.get("content-type")?.toLowerCase().includes("multipart/form-data")) return noStore({error:"Choose an image to add to your portfolio."},400);
@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    if(!sameOrigin(request))return noStore({error:"Invalid request origin."},403);
     const auth=await verifiedSession(request);
     if("error" in auth)return auth.error;
     if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return noStore({error:"Invalid request."},403);
@@ -146,9 +147,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if(!sameOrigin(request)||!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return noStore({error:"Invalid request."},403);
     const auth=await verifiedSession(request);
     if("error" in auth)return auth.error;
-    if(!sameOrigin(request)||!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return noStore({error:"Invalid request."},403);
     const payload=await request.json();
     const photoId=typeof payload?.photoId==="string"?payload.photoId:"";
     if(!photoId)return noStore({error:"Choose a portfolio photograph to remove."},400);
