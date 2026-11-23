@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-type Profile = { id:string; name:string; email:string; bio:string; location:string; categories:string[]; profileImageUrl:string; heroImageUrl:string; status:string; publishState:string };
+type Profile = { id:string; slug:string; name:string; email:string; bio:string; location:string; categories:string[]; profileImageUrl:string; heroImageUrl:string; status:string; publishState:string };
 type Draft = { publicName:string; bio:string; location:string; categories:string; profileImageUrl:string; heroImageUrl:string };
 const empty:Draft = { publicName:"", bio:"", location:"", categories:"", profileImageUrl:"", heroImageUrl:"" };
 
@@ -51,7 +51,7 @@ export default function PhotographerPortal() {
     <div style={{maxWidth:920,margin:"0 auto"}}>
       <header style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:42}}>
         <Link href="/" style={{color:"inherit",textDecoration:"none",fontWeight:800,letterSpacing:".12em"}}>LENS & LIGHT</Link>
-        <div style={{display:"flex",gap:10,alignItems:"center"}}>{profile&&<Link href={"/photographers/"+encodeURIComponent(profile.id)} style={{color:"#665e51"}}>Public profile</Link>}<button onClick={logout} style={{padding:"9px 13px",background:"transparent",border:"1px solid #cfc7b8",cursor:"pointer"}}>Sign out</button></div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>{profile&&<Link href={"/photographers/"+encodeURIComponent(profile.slug)} style={{color:"#665e51"}}>Public profile</Link>}<button onClick={logout} style={{padding:"9px 13px",background:"transparent",border:"1px solid #cfc7b8",cursor:"pointer"}}>Sign out</button></div>
       </header>
       <p style={{fontSize:11,letterSpacing:".18em",fontWeight:700,color:"#777064"}}>PHOTOGRAPHER WORKSPACE</p>
       <h1 style={{fontFamily:"Georgia,serif",fontWeight:400,fontSize:"clamp(34px,6vw,52px)",margin:"12px 0"}}>Your profile, <em>your story.</em></h1>
