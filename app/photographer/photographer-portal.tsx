@@ -29,7 +29,7 @@ export default function PhotographerPortal() {
     try {
       const response=await fetch("/api/photographer/profile",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({...draft,categories:draft.categories.split(",").map(v=>v.trim()).filter(Boolean)})});
       const data=await response.json(); if(!response.ok)throw new Error(data.error||"Profile could not be saved.");
-      setProfile(current=>current?{...current,name:draft.publicName,bio:draft.bio,location:draft.location,categories:draft.categories.split(",").map(v=>v.trim()).filter(Boolean),profileImageUrl:draft.profileImageUrl,heroImageUrl:draft.heroImageUrl}:current);
+      setProfile(current=>current?{...current,slug:data.slug||current.slug,name:draft.publicName,bio:draft.bio,location:draft.location,categories:draft.categories.split(",").map(v=>v.trim()).filter(Boolean),profileImageUrl:draft.profileImageUrl,heroImageUrl:draft.heroImageUrl}:current);
       setMessage(data.unchanged?"Your profile is already up to date.":"Your profile has been saved. Changes are live on your public profile.");
     } catch(e){setError(e instanceof Error?e.message:"Profile could not be saved.");}
     finally{setSaving(false);}
