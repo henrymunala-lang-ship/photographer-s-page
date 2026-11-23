@@ -83,12 +83,17 @@ export async function createApplicationSubmission(
   const registrationId = "reg_" + randomUUID();
   const messageId = "appmsg_" + randomUUID();
   const tokenId = randomUUID();
+  const setupTokenId = randomUUID();
+  const rawSetupToken = randomBytes(32).toString("base64url");
+  const setupTokenHash = hash(rawSetupToken);
+  const setupTokenExpiry = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
   const rawAccessToken = randomBytes(32).toString("base64url");
   const tokenHash = hash(rawAccessToken);
   const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const workbookEventId = "appout_" + randomUUID();
   const emailEventId = "appout_" + randomUUID();
   const encryptedToken = encryptAccessToken(rawAccessToken);
+  const encryptedSetupToken = encryptAccessToken(rawSetupToken);
   const sql = getDatabase();
 
   const created = await sql`WITH inserted_application AS (
@@ -126,6 +131,11 @@ export async function createApplicationSubmission(
       SELECT ${tokenId}, registration_id, ${tokenHash}, ${tokenExpiry}::timestamptz
       FROM inserted_application
       RETURNING token_id
+    ), inserted_setup_token AS (
+      INSERT INTO photographer_account_setup_tokens (token_id, registration_id, token_hash, expires_at)
+      SELECT ${setupTokenId}, registration_id, ${setupTokenHash}, ${setupTokenExpiry}::timestamptz
+      FROM inserted_application
+      RETURNING token_id
     ), inserted_operation AS (
       INSERT INTO application_operations (
         idempotency_key, registration_id, payload_hash, operation_state
@@ -143,7 +153,7 @@ export async function createApplicationSubmission(
     ), inserted_email_event AS (
       INSERT INTO application_outbox (event_id, registration_id, event_type, payload)
       SELECT ${emailEventId}, registration_id, 'application.acknowledgement_email',
-        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', ${encryptedToken}::text)
+        jsonb_build_object('registrationId', registration_id, 'encryptedAccessToken', ${encryptedToken}::text, 'encryptedAccountSetupToken', ${encryptedSetupToken}::text)
       FROM inserted_application
       RETURNING event_id
     )
@@ -154,7 +164,9 @@ export async function createApplicationSubmission(
       created: true,
       registrationId: String(created[0].registration_id),
       accessLink: "/application/updates#access=" + encodeURIComponent(rawAccessToken),
-      accessLinkExpiresAt: tokenExpiry
+      accessLinkExpiresAt: tokenExpiry,
+      accountSetupLink: "/photographer/setup#token=" + encodeURIComponent(rawSetupToken),
+      accountSetupLinkExpiresAt: setupTokenExpiry
     };
   }
 
@@ -172,13 +184,16 @@ export async function createApplicationSubmission(
   if (String(existing[0].payload_hash).trim() !== payloadHash) {
     return { created: false, conflict: true as const };
   }
-  const accessRows = await sql`SELECT payload->>'encryptedAccessToken' AS encrypted_access_token
+  const accessRows = await sql`SELECT payload->>'encryptedAccessToken' AS encrypted_access_token,
+      payload->>'encryptedAccountSetupToken' AS encrypted_setup_token
     FROM application_outbox
     WHERE registration_id = ${String(existing[0].registration_id)}
       AND event_type = 'application.acknowledgement_email'
     ORDER BY created_at DESC LIMIT 1`;
   const encrypted = String(accessRows[0]?.encrypted_access_token ?? "");
   const replayToken = encrypted ? decryptAccessToken(encrypted) : "";
+  const encryptedSetup = String(accessRows[0]?.encrypted_setup_token ?? "");
+  const replaySetupToken = encryptedSetup ? decryptAccessToken(encryptedSetup) : "";
   const tokenRows = replayToken
     ? await sql`SELECT expires_at FROM applicant_access_tokens WHERE token_hash = ${hash(replayToken)} LIMIT 1`
     : [];
@@ -189,6 +204,7 @@ export async function createApplicationSubmission(
       accessLink: "/application/updates#access=" + encodeURIComponent(replayToken),
       accessLinkExpiresAt: new Date(String(tokenRows[0].expires_at)).toISOString()
     } : {}),
+    ...(replaySetupToken ? { accountSetupLink: "/photographer/setup#token=" + encodeURIComponent(replaySetupToken) } : {}),
     idempotentReplay: true as const
   };
 }
