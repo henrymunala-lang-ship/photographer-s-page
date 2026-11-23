@@ -183,7 +183,8 @@ export async function migrateApplicationDatabase() {
         'photographer_accounts',
         'photographer_applicant_accounts',
         'photographer_account_setup_tokens',
-        'photographer_invitations'
+        'photographer_invitations',
+        'photographer_password_reset_tokens'
       ])`;
   const found = new Set(rows.map((row) => String(row.table_name)));
   const expected = [
@@ -198,7 +199,8 @@ export async function migrateApplicationDatabase() {
     "photographer_accounts",
     "photographer_applicant_accounts",
     "photographer_account_setup_tokens",
-    "photographer_invitations"
+    "photographer_invitations",
+    "photographer_password_reset_tokens"
   ];
   const missing = expected.filter((table) => !found.has(table));
   if (missing.length) throw new Error("Application database schema verification failed.");
