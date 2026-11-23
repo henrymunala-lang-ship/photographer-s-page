@@ -45,7 +45,7 @@ async function driveAccessToken(): Promise<string> {
   return payload.access_token;
 }
 
-export async function uploadPhotographerImage(file: File, photographerId: string, kind: "profile" | "hero") {
+export async function uploadPhotographerImage(file: File, photographerId: string, kind: "profile" | "hero" | "gallery") {
   const extension = MIME_EXTENSIONS[file.type];
   if (!extension || file.size < 1 || file.size > MAX_IMAGE_BYTES) {
     throw new Error("Choose a JPG, PNG or WebP image up to 8 MB.");
