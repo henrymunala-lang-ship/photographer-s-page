@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v2";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v3-photographer-accounts";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -93,6 +93,30 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS application_outbox_due_idx
     ON application_outbox (state, next_attempt_at, created_at)`,
+  `CREATE TABLE IF NOT EXISTS photographer_accounts (
+    account_id text PRIMARY KEY,
+    photographer_id text NOT NULL UNIQUE,
+    email text NOT NULL UNIQUE,
+    password_hash text NOT NULL,
+    account_state text NOT NULL DEFAULT 'active' CHECK (account_state IN ('active','suspended')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    last_login_at timestamptz
+  )`,
+  `CREATE TABLE IF NOT EXISTS photographer_invitations (
+    invitation_id text PRIMARY KEY,
+    photographer_id text NOT NULL,
+    email text NOT NULL,
+    token_hash char(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_by text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS photographer_invitations_active_idx
+    ON photographer_invitations (photographer_id, expires_at)
+    WHERE used_at IS NULL AND revoked_at IS NULL`,
   `CREATE TABLE IF NOT EXISTS application_rate_limits (
     rate_key char(64) PRIMARY KEY,
     window_started_at timestamptz NOT NULL DEFAULT now(),
