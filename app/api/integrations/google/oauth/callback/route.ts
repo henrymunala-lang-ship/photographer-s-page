@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     return clearCookie(htmlPage("Google account not authorized", "<p>The verified Google account does not match the configured workbook owner. No refresh token was retained. Revoke the app grant in Google Account security if this was unexpected.</p>", 403));
   }
 
-  if (!(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/spreadsheets")) {
+  if (!(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/spreadsheets") || !(token.scope ?? "").split(" ").includes("https://www.googleapis.com/auth/drive.file")) {
     return clearCookie(htmlPage("Required file permission was not granted", "<p>The grant does not include the Google Sheets read/write scope required for the owner-managed workbook. No refresh token was retained.</p>", 403));
   }
   if (!token.refresh_token) {
@@ -100,6 +100,6 @@ export async function GET(request: NextRequest) {
 
   const safeEmail = identity.email.replace(/[&<>"']/g, "");
   const escapedToken = token.refresh_token.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  const body = `<p>Google verified <strong>${safeEmail}</strong>. The authorization grant has the requested Drive file scope. The refresh token is shown once below because this project does not yet have a durable secret vault integration.</p><p><strong>Next:</strong> copy this value directly into the Vercel project as a Secret named <code>GOOGLE_OAUTH_REFRESH_TOKEN</code>, scoped only to Preview and branch <code>integration-foundation</code>. Do not paste it into chat, GitHub, Sheets or source code.</p><textarea readonly rows="4" style="box-sizing:border-box;width:100%;padding:12px">${escapedToken}</textarea><p>After saving it in Vercel, close this page. Then continue with the workbook file-selection and read-only verification step. This page does not claim that the workbook has been selected or connected.</p>`;
+  const body = `<p>Google verified <strong>${safeEmail}</strong>. The authorization grant includes Google Sheets access and the restricted Drive file scope for app-created images. The refresh token is shown once below because this project does not yet have a durable secret vault integration.</p><p><strong>Next:</strong> copy this value directly into the Vercel project as a Secret named <code>GOOGLE_OAUTH_REFRESH_TOKEN</code>, scoped only to Preview and branch <code>integration-foundation</code>. Do not paste it into chat, GitHub, Sheets or source code.</p><textarea readonly rows="4" style="box-sizing:border-box;width:100%;padding:12px">${escapedToken}</textarea><p>Replace the existing Preview-only GOOGLE_OAUTH_REFRESH_TOKEN value in Vercel with this new value, keeping the integration-foundation Preview scope. Then close this page. The same token now authorizes the existing workbook and app-created Drive images.</p>`;
   return clearCookie(htmlPage("Owner identity verified", body));
 }
