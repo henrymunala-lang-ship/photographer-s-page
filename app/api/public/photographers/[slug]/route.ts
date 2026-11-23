@@ -26,7 +26,18 @@ function safeImageUrl(input: string): string | null {
   if (!input) return null;
   try {
     const url = new URL(input);
-    return url.protocol === "https:" ? url.toString() : null;
+    if (url.protocol !== "https:") return null;
+
+    // Google Drive's file-view URL can redirect to a download response that
+    // browsers do not consistently render inside an img element. Use its
+    // thumbnail endpoint for public profile image embeds instead.
+    if (url.hostname === "drive.google.com" && url.pathname === "/uc") {
+      const fileId = url.searchParams.get("id");
+      if (!fileId) return null;
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    }
+
+    return url.toString();
   } catch {
     return null;
   }
