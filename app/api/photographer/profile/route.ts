@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPhotographerSession } from "@/lib/photographers/auth";
-import { updateValues, appendRows } from "@/lib/integrations/google-sheets/client";
+import { readValues, batchUpdateValues, appendRows } from "@/lib/integrations/google-sheets/client";
 import { photographerSlug } from "@/lib/photographers/slug";
 
 export const runtime = "nodejs";
@@ -42,18 +42,33 @@ export async function PUT(request: NextRequest) {
     if (!publicName || publicName.length > 120 || bio.length > 5000 || location.length > 160 || categories.length > 500 || profileImageUrl === null || heroImageUrl === null) {
       return noStore({ error: "Check the name, biography, location, categories and HTTPS image links." }, 400);
     }
-    const p = session.record, next = [...p.row], changed: string[] = [];
-    const set = (key: string, value: string) => { const i = p.headers.indexOf(key); if (String(p.row[i] ?? "") !== value) { next[i] = value; changed.push(key); } };
-    set("public_name", publicName); set("bio", bio); set("primary_location", location); set("categories", categories);
-    set("profile_image_url", profileImageUrl); set("hero_image_url", heroImageUrl);
-    if (!changed.length) return noStore({ ok: true, unchanged: true, slug: photographerSlug(publicName, p.id), publishState: p.publishState, status: p.status });
-    next[p.headers.indexOf("updated_at")] = new Date().toISOString();
-    await updateValues("'02_PHOTOGRAPHERS'!A" + p.rowNumber + ":P" + p.rowNumber, [next]);
+    const p = session.record;
+    const rows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+    const headers = (rows[0] ?? []).map(value => String(value ?? "").trim());
+    const expected = ["photographer_id","auth_user_id","registration_id","public_name","email","phone","bio","primary_location","categories","profile_image_url","hero_image_url","status","publish_state","membership_tier","created_at","updated_at"];
+    if (headers.length !== expected.length || expected.some((header, index) => headers[index] !== header)) throw new Error("Photographer worksheet schema changed.");
+    const matches = rows.slice(1).map((row,index) => ({ row, rowNumber:index+2 })).filter(item => String(item.row[0] ?? "").trim() === p.id);
+    if (matches.length !== 1) return noStore({ error: "Your photographer record could not be uniquely verified. Refresh and try again." }, 409);
+    const current = matches[0];
+    if (String(current.row[1] ?? "").trim() !== session.accountId || String(current.row[4] ?? "").trim().toLowerCase() !== session.email.toLowerCase() || String(current.row[11] ?? "").trim().toUpperCase() !== "APPROVED") {
+      return noStore({ error: "Your account is no longer linked to an approved photographer profile." }, 409);
+    }
+    const fields: Array<[string,string,string]> = [
+      ["D","public_name",publicName],["G","bio",bio],["H","primary_location",location],["I","categories",categories],
+      ["J","profile_image_url",profileImageUrl],["K","hero_image_url",heroImageUrl]
+    ];
+    const changed = fields.filter(([,key,value]) => String(current.row[headers.indexOf(key)] ?? "") !== value).map(([,key])=>key);
+    if (!changed.length) return noStore({ ok: true, unchanged: true, slug: photographerSlug(publicName, p.id), publishState: String(current.row[12] ?? ""), status: String(current.row[11] ?? "") });
+    const now = new Date().toISOString();
+    const writes = fields.filter(([,key,value]) => String(current.row[headers.indexOf(key)] ?? "") !== value)
+      .map(([column,,value]) => ({ range: `'02_PHOTOGRAPHERS'!${column}${current.rowNumber}`, values: [[value]] }));
+    writes.push({ range: `'02_PHOTOGRAPHERS'!P${current.rowNumber}`, values: [[now]] });
+    await batchUpdateValues(writes);
     await appendRows("'14_AUDIT_LOG'!A:I", [[
       "audit_" + randomBytes(12).toString("hex"), "photographer", session.accountId,
       "photographer.profile.updated", "photographer", p.id,
       JSON.stringify({ changedFields: changed }), "", new Date().toISOString()
     ]]);
-    return noStore({ ok: true, changedFields: changed, slug: photographerSlug(publicName, p.id), status: p.status, publishState: p.publishState });
+    return noStore({ ok: true, changedFields: changed, slug: photographerSlug(publicName, p.id), status: String(current.row[11] ?? ""), publishState: String(current.row[12] ?? "") });
   } catch { return noStore({ error: "Your profile could not be saved. Refresh the page before retrying." }, 503); }
 }
