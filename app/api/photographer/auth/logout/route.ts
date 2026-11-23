@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PHOTOGRAPHER_COOKIE, photographerCookieOptions } from "@/lib/photographers/auth";
+import { PHOTOGRAPHER_APPLICANT_COOKIE, photographerApplicantCookieOptions } from "@/lib/photographers/applicant-session";
 export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
