@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPhotographerSession } from "@/lib/photographers/auth";
 import { updateValues, appendRows } from "@/lib/integrations/google-sheets/client";
+import { photographerSlug } from "@/lib/photographers/slug";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     const session = await getPhotographerSession(request);
     if (!session) return noStore({ error: "Photographer sign-in is required." }, 401);
     const p = session.record;
-    return noStore({ photographer: { id: p.id, name: p.name, email: p.email, bio: p.bio, location: p.location, categories: p.categories, profileImageUrl: p.profileImageUrl, heroImageUrl: p.heroImageUrl, status: p.status, publishState: p.publishState } });
+    return noStore({ photographer: { id: p.id, slug: photographerSlug(p.name, p.id), name: p.name, email: p.email, bio: p.bio, location: p.location, categories: p.categories, profileImageUrl: p.profileImageUrl, heroImageUrl: p.heroImageUrl, status: p.status, publishState: p.publishState } });
   } catch { return noStore({ error: "Your photographer profile could not be loaded." }, 503); }
 }
 export async function PUT(request: NextRequest) {
