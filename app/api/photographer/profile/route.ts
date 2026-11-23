@@ -46,7 +46,7 @@ export async function PUT(request: NextRequest) {
     const set = (key: string, value: string) => { const i = p.headers.indexOf(key); if (String(p.row[i] ?? "") !== value) { next[i] = value; changed.push(key); } };
     set("public_name", publicName); set("bio", bio); set("primary_location", location); set("categories", categories);
     set("profile_image_url", profileImageUrl); set("hero_image_url", heroImageUrl);
-    if (!changed.length) return noStore({ ok: true, unchanged: true, publishState: p.publishState, status: p.status });
+    if (!changed.length) return noStore({ ok: true, unchanged: true, slug: photographerSlug(publicName, p.id), publishState: p.publishState, status: p.status });
     next[p.headers.indexOf("updated_at")] = new Date().toISOString();
     await updateValues("'02_PHOTOGRAPHERS'!A" + p.rowNumber + ":P" + p.rowNumber, [next]);
     await appendRows("'14_AUDIT_LOG'!A:I", [[
@@ -54,6 +54,6 @@ export async function PUT(request: NextRequest) {
       "photographer.profile.updated", "photographer", p.id,
       JSON.stringify({ changedFields: changed }), "", new Date().toISOString()
     ]]);
-    return noStore({ ok: true, changedFields: changed, status: p.status, publishState: p.publishState });
+    return noStore({ ok: true, changedFields: changed, slug: photographerSlug(publicName, p.id), status: p.status, publishState: p.publishState });
   } catch { return noStore({ error: "Your profile could not be saved. Refresh the page before retrying." }, 503); }
 }
