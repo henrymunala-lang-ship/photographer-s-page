@@ -89,7 +89,7 @@ export default function PhotographersPage() {
               <span>APPROVED PHOTOGRAPHER</span>
             </div>
             <div className="photographer-info">
-              <div className="photographer-avatar">{photographer.profileImageUrl || photographer.heroImageUrl ? <img src={photographer.profileImageUrl || photographer.heroImageUrl || ""} alt={`${photographer.name} portrait`} loading="lazy"/> : <Camera size={22}/ >}</div>
+              <div className="photographer-avatar">{photographer.profileImageUrl || photographer.heroImageUrl ? <img src={photographer.profileImageUrl || photographer.heroImageUrl || ""} alt={`${photographer.name} portrait`} loading="lazy"/> : <Camera size={22}/>}</div>
               <p className="photographer-type">{category}</p><h2>{photographer.name}</h2>
               <p className="photographer-location"><MapPin size={13}/>{photographer.primaryLocation || "Location not specified"}</p>
               <p className="photographer-bio">{photographer.bio || "View this photographer's work and get in touch about your project."}</p>
