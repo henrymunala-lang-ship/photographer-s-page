@@ -22,10 +22,15 @@ export async function POST(request: NextRequest) {
     const password = typeof payload?.password === "string" ? payload.password : "";
     if (token.length < 32 || token.length > 256) return noStore({ error: "This account setup link is invalid or expired." }, 400);
     if (password.length < 12 || password.length > 128) return noStore({ error: "Choose a password with at least 12 characters." }, 400);
-    const passwordHash = await hashPhotographerPassword(password);
-    const accountId = "pacc_" + randomUUID();
     const tokenHash = createHash("sha256").update(token).digest("hex");
     const sql = getDatabase();
+    const validTokens = await sql`SELECT t.registration_id FROM photographer_account_setup_tokens t
+      JOIN application_submissions s ON s.registration_id = t.registration_id
+      WHERE t.token_hash = ${tokenHash} AND t.used_at IS NULL AND t.revoked_at IS NULL
+        AND t.expires_at > now() AND s.status IN ('pending','under_review','needs_information','approved') LIMIT 1`;
+    if (!validTokens.length) return noStore({ error: "This account setup link is invalid or expired." }, 401);
+    const passwordHash = await hashPhotographerPassword(password);
+    const accountId = "pacc_" + randomUUID();
     const created = await sql`WITH claimed AS (
         UPDATE photographer_account_setup_tokens
         SET used_at = now()
