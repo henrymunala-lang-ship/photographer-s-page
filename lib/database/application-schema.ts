@@ -93,6 +93,16 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS application_outbox_due_idx
     ON application_outbox (state, next_attempt_at, created_at)`,
+  `CREATE TABLE IF NOT EXISTS photographer_accounts (
+    account_id text PRIMARY KEY,
+    photographer_id text NOT NULL UNIQUE,
+    email text NOT NULL UNIQUE,
+    password_hash text NOT NULL,
+    account_state text NOT NULL DEFAULT 'active' CHECK (account_state IN ('active','suspended')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    last_login_at timestamptz
+  )`,
   `ALTER TABLE photographer_accounts ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 1`,
   `CREATE TABLE IF NOT EXISTS photographer_password_reset_tokens (
     token_id text PRIMARY KEY,
@@ -107,16 +117,6 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS photographer_password_reset_active_idx
     ON photographer_password_reset_tokens (account_id, expires_at)
     WHERE used_at IS NULL AND revoked_at IS NULL`,
-  `CREATE TABLE IF NOT EXISTS photographer_accounts (
-    account_id text PRIMARY KEY,
-    photographer_id text NOT NULL UNIQUE,
-    email text NOT NULL UNIQUE,
-    password_hash text NOT NULL,
-    account_state text NOT NULL DEFAULT 'active' CHECK (account_state IN ('active','suspended')),
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    last_login_at timestamptz
-  )`,
   `CREATE TABLE IF NOT EXISTS photographer_applicant_accounts (
     account_id text PRIMARY KEY,
     registration_id text NOT NULL UNIQUE REFERENCES application_submissions(registration_id) ON DELETE CASCADE,
