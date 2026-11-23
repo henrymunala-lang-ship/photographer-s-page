@@ -109,6 +109,11 @@ export default function ApplicationUpdatesPage() {
             <div role="status" style={{ color: "#6d685f", lineHeight: 1.7 }}>{notice}<p>Open the latest private access link sent for your application. For your protection, this page does not ask you to sign in with Google.</p></div>
           ) : (
             <>
+              <section style={{ padding: 16, marginBottom: 24, background: "#f8f6f1", border: "1px solid #e4ded3", borderRadius: 6 }}>
+                <h2 style={{ margin: "0 0 8px", fontFamily: "Georgia, serif", fontSize: 23, fontWeight: 400 }}>Create your photographer sign-in</h2>
+                <p style={{ margin: "0 0 12px", color: "#6d685f", fontSize: 13, lineHeight: 1.6 }}>Use this verified private application link to create your password. This does not approve your application or publish your profile.</p>
+                <Link href="/application/create-account" style={{ display: "inline-block", padding: "11px 15px", background: "#282722", color: "white", borderRadius: 4, textDecoration: "none", fontSize: 13 }}>Create sign-in account</Link>
+              </section>
               <div aria-live="polite" style={{ display: "grid", gap: 12, marginBottom: 24 }}>
                 {messages.length === 0 ? <p style={{ color: "#777064" }}>Your conversation will appear here when a message is added.</p> : messages.map((message) => (
                   <article key={message.message_id} style={{ maxWidth: "88%", justifySelf: message.sender_type === "applicant" ? "end" : "start", background: message.sender_type === "applicant" ? "#eee9df" : "#f8f6f1", padding: 14, borderRadius: 7 }}>
