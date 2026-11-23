@@ -108,7 +108,7 @@ export default function PhotographerEditor() {
         <Link href="/owner" className="owner-secondary">← Owner workspace</Link>
       </div>
       <p>Edit approved photographer information and images. Uploaded images are stored in the connected Google Drive and receive a shareable link for the public photographer profile.</p>
-      {(uploading || message || error) && <div role={error ? "alert" : "status"} aria-live="polite" style={{ margin: "18px 0", padding: "16px 18px", border: error ? "1px solid #b42318" : "1px solid #8b9b83", background: error ? "#fff4f2" : "#f3f7f1", color: error ? "#8f1d14" : "#263d29", borderRadius: 8 }}>
+      {(uploading || message || error) && <div role={error ? "alert" : "status"} aria-live="polite" style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 10000, width: "min(560px, calc(100vw - 32px))", margin: 0, padding: "16px 18px", border: error ? "2px solid #b42318" : "2px solid #58734f", background: error ? "#fff4f2" : "#f3f7f1", color: error ? "#8f1d14" : "#263d29", borderRadius: 10, boxShadow: "0 8px 28px rgba(0,0,0,.22)" }}>
         {uploading ? <><strong>Uploading {uploading === "hero" ? "cover image" : "profile photo"}…</strong><p style={{ margin: "6px 0 0" }}>Please keep this page open. We will confirm when Google Drive has stored the image.</p></> : error ? <><strong>We could not complete that action.</strong><p style={{ margin: "6px 0 0" }}>{error}</p></> : <><strong>{message}</strong></>}
       </div>}
       {loading ? <p>Loading photographer records…</p> : error && !rows.length ? <p role="alert" className="owner-error">{error}</p> : <>
