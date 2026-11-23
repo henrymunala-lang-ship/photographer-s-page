@@ -85,11 +85,11 @@ export default function PhotographersPage() {
           const category = photographer.categories[0] || "Photography";
           return <article className="photographer-card" key={photographer.id}>
             <div className="photographer-cover">
-              {photographer.heroImageUrl ? <img src={photographer.heroImageUrl} alt={`${photographer.name} portfolio`} loading="lazy"/> : <div className="directory-image-placeholder"><Camera size={30}/></div>}
+              {photographer.heroImageUrl || photographer.profileImageUrl ? <img src={photographer.heroImageUrl || photographer.profileImageUrl || ""} alt={`${photographer.name} photography`} loading="lazy"/> : <div className="directory-image-placeholder"><Camera size={30}/></div>}
               <span>APPROVED PHOTOGRAPHER</span>
             </div>
             <div className="photographer-info">
-              <div className="photographer-avatar">{photographer.profileImageUrl ? <img src={photographer.profileImageUrl} alt=""/> : <Camera size={22}/>}</div>
+              <div className="photographer-avatar">{photographer.profileImageUrl || photographer.heroImageUrl ? <img src={photographer.profileImageUrl || photographer.heroImageUrl || ""} alt={`${photographer.name} portrait`} loading="lazy"/> : <Camera size={22}/ >}</div>
               <p className="photographer-type">{category}</p><h2>{photographer.name}</h2>
               <p className="photographer-location"><MapPin size={13}/>{photographer.primaryLocation || "Location not specified"}</p>
               <p className="photographer-bio">{photographer.bio || "View this photographer's work and get in touch about your project."}</p>
