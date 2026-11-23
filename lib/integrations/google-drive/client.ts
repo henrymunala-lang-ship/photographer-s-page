@@ -65,10 +65,10 @@ export async function uploadPhotographerImage(file: File, photographerId: string
     description: `Lens & Light photographer ${kind} image for ${photographerId}`
   };
   const prefix = Buffer.from(
-    `--${boundary}\\r\\nContent-Type: application/json; charset=UTF-8\\r\\n\\r\\n${JSON.stringify(metadata)}\\r\\n--${boundary}\\r\\nContent-Type: ${file.type}\\r\\n\\r\\n`,
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${file.type}\r\n\r\n`,
     "utf8"
   );
-  const suffix = Buffer.from(`\\r\\n--${boundary}--`, "utf8");
+  const suffix = Buffer.from(`\r\n--${boundary}--`, "utf8");
   const body = Buffer.concat([prefix, fileBytes, suffix]);
 
   const uploadResponse = await fetch(
