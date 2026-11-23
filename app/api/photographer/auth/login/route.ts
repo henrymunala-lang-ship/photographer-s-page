@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       if (record && record.accountId === accountId && record.email === email) {
         await sql`UPDATE photographer_accounts SET last_login_at = now() WHERE account_id = ${accountId}`;
         const response = noStore({ ok: true, pending: false });
-        response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId, photographerId, email, exp: Date.now() + 8 * 60 * 60 * 1000 }), photographerCookieOptions());
+        response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId, photographerId, email, exp: Date.now() + 8 * 60 * 60 * 1000, sessionVersion: Number(rows[0].session_version ?? 1) }), photographerCookieOptions());
         response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, "", { ...photographerApplicantCookieOptions(), maxAge: 0 });
         return response;
       }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
             WHERE account_id = ${String(applicant.account_id)} ON CONFLICT (account_id) DO NOTHING`;
           await batchUpdateValues([{range: `'02_PHOTOGRAPHERS'!B${matches[0].rowNumber}`,values:[[String(applicant.account_id)]]},{range:`'02_PHOTOGRAPHERS'!P${matches[0].rowNumber}`,values:[[new Date().toISOString()]]}]);
           const response = noStore({ ok: true, pending: false });
-          response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId:String(applicant.account_id), photographerId, email, exp:Date.now()+8*60*60*1000 }), photographerCookieOptions());
+          response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId:String(applicant.account_id), photographerId, email, exp:Date.now()+8*60*60*1000, sessionVersion:1 }), photographerCookieOptions());
           response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, '', {...photographerApplicantCookieOptions(),maxAge:0});
           return response;
         }
