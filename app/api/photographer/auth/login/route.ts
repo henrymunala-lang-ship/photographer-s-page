@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
+import { readValues, batchUpdateValues } from "@/lib/integrations/google-sheets/client";
 import { readPhotographerRecord, verifyPhotographerPassword, photographerSessionCookie, photographerCookieOptions, PHOTOGRAPHER_COOKIE } from "@/lib/photographers/auth";
 import { createPhotographerApplicantSession, photographerApplicantCookieOptions, PHOTOGRAPHER_APPLICANT_COOKIE } from "@/lib/photographers/applicant-session";
 
@@ -69,6 +70,26 @@ export async function POST(request: NextRequest) {
       return noStore({ error: "This application is no longer active. Contact Lens & Light for assistance." }, 403);
     }
     await sql`UPDATE photographer_applicant_accounts SET last_login_at = now() WHERE account_id = ${String(applicant.account_id)}`;
+    if (String(applicant.status) === 'approved') {
+      const sheetRows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+      const headers = (sheetRows[0] ?? []).map(value => String(value ?? '').trim());
+      const expected = ['photographer_id','auth_user_id','registration_id','public_name','email','phone','bio','primary_location','categories','profile_image_url','hero_image_url','status','publish_state','membership_tier','created_at','updated_at'];
+      if (headers.length === expected.length && expected.every((header,index) => headers[index] === header)) {
+        const matches = sheetRows.slice(1).map((row,index)=>({row,rowNumber:index+2})).filter(item=>String(item.row[2] ?? '').trim() === String(applicant.registration_id));
+        if (matches.length === 1 && String(matches[0].row[11] ?? '').trim().toUpperCase() === 'APPROVED' &&
+            (!String(matches[0].row[1] ?? '').trim() || String(matches[0].row[1]).trim() === String(applicant.account_id))) {
+          const photographerId = String(matches[0].row[0] ?? '').trim();
+          await sql`INSERT INTO photographer_accounts (account_id, photographer_id, email, password_hash)
+            SELECT account_id, ${photographerId}, email, password_hash FROM photographer_applicant_accounts
+            WHERE account_id = ${String(applicant.account_id)} ON CONFLICT (account_id) DO NOTHING`;
+          await batchUpdateValues([{range: `'02_PHOTOGRAPHERS'!B${matches[0].rowNumber}`,values:[[String(applicant.account_id)]]},{range:`'02_PHOTOGRAPHERS'!P${matches[0].rowNumber}`,values:[[new Date().toISOString()]]}]);
+          const response = noStore({ ok: true, pending: false });
+          response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId:String(applicant.account_id), photographerId, email, exp:Date.now()+8*60*60*1000 }), photographerCookieOptions());
+          response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, '', {...photographerApplicantCookieOptions(),maxAge:0});
+          return response;
+        }
+      }
+    }
     const response = noStore({ ok: true, pending: true, status: String(applicant.status) });
     response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, createPhotographerApplicantSession({
       accountId: String(applicant.account_id), registrationId: String(applicant.registration_id), exp: Date.now() + 8 * 60 * 60 * 1000
