@@ -81,11 +81,12 @@ export async function getPhotographerSession(request: NextRequest) {
   const session = decode(raw);
   if (!session) return null;
   const sql = getDatabase();
-  const accounts = await sql`SELECT account_id, photographer_id, email, account_state
+  const accounts = await sql`SELECT account_id, photographer_id, email, account_state, session_version
     FROM photographer_accounts WHERE account_id = ${session.accountId} LIMIT 1`;
   if (!accounts.length || String(accounts[0].account_state) !== "active" ||
       String(accounts[0].photographer_id) !== session.photographerId ||
-      String(accounts[0].email).toLowerCase() !== session.email.toLowerCase() ||\n      Number(accounts[0].session_version ?? 1) !== Number(session.sessionVersion ?? 1)) return null;
+      String(accounts[0].email).toLowerCase() !== session.email.toLowerCase() ||
+      Number(accounts[0].session_version ?? 1) !== Number(session.sessionVersion ?? 1)) return null;
   const record = await readPhotographerRecord(session.photographerId);
   if (!record || record.accountId !== session.accountId || record.email !== session.email.toLowerCase()) return null;
   return { ...session, record };
