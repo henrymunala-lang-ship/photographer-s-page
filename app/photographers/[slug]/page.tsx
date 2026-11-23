@@ -99,6 +99,9 @@ export default function PublicPhotographerProfile() {
       </div>
       <div className="profile-hero-copy">
         <Link href="/photographers" className="back-link"><ArrowLeft size={15}/> ALL PHOTOGRAPHERS</Link>
+        <div className="profile-portrait" aria-label={`${photographer.name} profile photo`}>
+          {photographer.profileImageUrl ? <img src={photographer.profileImageUrl} alt={`${photographer.name} portrait`}/> : <div className="profile-portrait-placeholder"><Camera size={22}/></div>}
+        </div>
         <p className="kicker">{photographer.categories.join(" · ") || "PHOTOGRAPHER"}</p>
         <h1>{photographer.name}</h1>
         <p className="profile-location"><MapPin size={15}/>{photographer.primaryLocation || "Location not specified"}</p>
