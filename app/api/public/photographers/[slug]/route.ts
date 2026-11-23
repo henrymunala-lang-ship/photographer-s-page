@@ -161,7 +161,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
 
     return NextResponse.json(
       { photographer, gallery, services, serviceAreas },
-      { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+      { headers: { "Cache-Control": "public, max-age=0, s-maxage=0, must-revalidate" } }
     );
   } catch {
     return NextResponse.json(
