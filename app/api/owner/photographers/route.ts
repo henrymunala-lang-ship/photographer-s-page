@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readValues } from "@/lib/integrations/google-sheets/client";
-import { can, currentAdmin } from "@/lib/owner/admin-auth";\nimport { getDatabase } from "@/lib/database/neon";
+import { can, currentAdmin } from "@/lib/owner/admin-auth";
+import { getDatabase } from "@/lib/database/neon";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,8 @@ export async function GET() {
   }
 
   try {
-    const [rows, accountRows] = await Promise.all([readValues(RANGE), getDatabase()`SELECT photographer_id, account_state FROM photographer_accounts`]);\n    const accounts = new Map(accountRows.map((row) => [String(row.photographer_id), String(row.account_state)]));
+    const [rows, accountRows] = await Promise.all([readValues(RANGE), getDatabase()`SELECT photographer_id, account_state FROM photographer_accounts`]);
+    const accounts = new Map(accountRows.map((row) => [String(row.photographer_id), String(row.account_state)]));
     const headers = (rows[0] ?? []).map((value) => String(value ?? "").trim());
     const missing = REQUIRED_HEADERS.filter((header) => !headers.includes(header));
     // Diagnostics must remain available even when the live worksheet differs
@@ -41,7 +43,9 @@ export async function GET() {
       profileImageUrl: cell(row, headers, "profile_image_url"),
       heroImageUrl: cell(row, headers, "hero_image_url"),
       status: cell(row, headers, "status"),
-      publishState: cell(row, headers, "publish_state"),\n      hasAccount: accounts.has(cell(row, headers, "photographer_id")),\n      accountState: accounts.get(cell(row, headers, "photographer_id")) ?? ""
+      publishState: cell(row, headers, "publish_state"),
+      hasAccount: accounts.has(cell(row, headers, "photographer_id")),
+      accountState: accounts.get(cell(row, headers, "photographer_id")) ?? ""
     })).filter((row) => row.id && row.name);
 
     return NextResponse.json({
