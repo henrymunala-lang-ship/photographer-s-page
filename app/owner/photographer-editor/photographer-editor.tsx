@@ -70,7 +70,7 @@ export default function PhotographerEditor() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Image upload failed.");
       setDraft(current => ({ ...current, [kind === "profile" ? "profileImageUrl" : "heroImageUrl"]: data.url }));
-      setMessage((kind === "profile" ? "Profile photo" : "Cover photo") + " uploaded successfully and stored in Google Drive. Its shareable image link is ready; click Save profile changes to attach it to the photographer profile.");
+      setMessage("Image saved successfully.");
     } catch (e) { setError(e instanceof Error ? e.message : "Image upload failed."); }
     finally { setUploading(null); }
   }
