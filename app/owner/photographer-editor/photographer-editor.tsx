@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useFeedback } from "@/components/feedback-provider";
 
 type Photographer = {
   id: string; name: string; bio: string; location: string; categories: string[];
@@ -44,6 +45,7 @@ function handleImagePreviewError(event: React.SyntheticEvent<HTMLImageElement>, 
 const emptyDraft: Draft = { publicName: "", bio: "", location: "", categories: "", profileImageUrl: "", heroImageUrl: "" };
 
 export default function PhotographerEditor() {
+  const { notify } = useFeedback();
   const [rows, setRows] = useState<Photographer[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -100,8 +102,8 @@ export default function PhotographerEditor() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Image upload failed.");
       setDraft(current => ({ ...current, [kind === "profile" ? "profileImageUrl" : "heroImageUrl"]: data.url }));
-      setMessage("Image saved successfully.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Image upload failed."); }
+      setMessage("Image saved successfully."); notify("The photographer image has been uploaded and saved.","success","Image updated");
+    } catch (e) { const message = e instanceof Error ? e.message : "Image upload failed."; setError(message); notify(message,"error","Image upload failed"); }
     finally { setUploading(null); }
   }
 
@@ -124,8 +126,8 @@ export default function PhotographerEditor() {
         categories: draft.categories.split(",").map(value => value.trim()).filter(Boolean),
         profileImageUrl: draft.profileImageUrl, heroImageUrl: draft.heroImageUrl
       } : item));
-      setMessage(data.unchanged ? "No profile changes were needed. The saved image links are unchanged." : "Profile changes saved successfully. The image links are now attached to this photographer profile. Approval and publication settings were left unchanged.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Profile could not be saved."); }
+      setMessage(data.unchanged ? "No profile changes were needed. The saved image links are unchanged." : "Profile changes saved successfully. The image links are now attached to this photographer profile. Approval and publication settings were left unchanged."); notify(data.unchanged ? "No changes were needed; the existing image links remain unchanged." : "Profile details and image links have been saved. Approval and publication settings were not changed.","success","Photographer profile saved");
+    } catch (e) { const message = e instanceof Error ? e.message : "Profile could not be saved."; setError(message); notify(message,"error","Profile could not be saved"); }
     finally { setSaving(false); }
   }
 
@@ -138,9 +140,7 @@ export default function PhotographerEditor() {
         <Link href="/owner" className="owner-secondary">← Owner workspace</Link>
       </div>
       <p>Edit approved photographer information and images. Uploaded images are stored in the connected Google Drive and receive a shareable link for the public photographer profile.</p>
-      {(uploading || message || error) && <div role={error ? "alert" : "status"} aria-live="polite" style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 10000, width: "min(560px, calc(100vw - 32px))", margin: 0, padding: "16px 18px", border: error ? "2px solid #b42318" : "2px solid #58734f", background: error ? "#fff4f2" : "#f3f7f1", color: error ? "#8f1d14" : "#263d29", borderRadius: 10, boxShadow: "0 8px 28px rgba(0,0,0,.22)" }}>
-        {uploading ? <><strong>Uploading {uploading === "hero" ? "cover image" : "profile photo"}…</strong><p style={{ margin: "6px 0 0" }}>Please keep this page open. We will confirm when Google Drive has stored the image.</p></> : error ? <><strong>We could not complete that action.</strong><p style={{ margin: "6px 0 0" }}>{error}</p></> : <><strong>{message}</strong></>}
-      </div>}
+      {uploading && <div role="status" aria-live="polite" className="ll-toast ll-toast-info"><span className="ll-toast-copy"><strong>Uploading {uploading === "hero" ? "cover image" : "profile photo"}…</strong><span>Please keep this page open while Google Drive stores the image.</span></span></div>}
       {loading ? <p>Loading photographer records…</p> : error && !rows.length ? <p role="alert" className="owner-error">{error}</p> : <>
         <label>Choose photographer</label>
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by name, location or ID" />
