@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Camera, Send, ShieldCheck } from "lucide-react";
+import { PageSkeleton } from "@/components/page-skeleton";
 
 type Message = {
   message_id: string;
