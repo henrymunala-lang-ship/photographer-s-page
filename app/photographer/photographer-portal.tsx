@@ -2,21 +2,38 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-function imagePreviewUrl(input: string): string {
-  if (!input) return "";
+function imagePreviewCandidates(input: string): string[] {
+  if (!input) return [];
   try {
-    const url = new URL(input);
-    if (url.protocol !== "https:") return "";
-    if (url.hostname === "drive.google.com") {
-      const fileId = url.searchParams.get("id") || url.pathname.match(/^\/file\/d\/([^/]+)/)?.[1];
-      if (fileId && (url.pathname === "/uc" || url.pathname.startsWith("/file/d/") || url.pathname === "/thumbnail")) {
-        return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200`;
+    const url = new URL(input.trim());
+    if (url.protocol !== "https:") return [];
+    if (url.hostname === "drive.google.com" || url.hostname === "drive.usercontent.google.com") {
+      const fileId = url.searchParams.get("id") || url.pathname.match(/^\\/file\\/d\\/([^/]+)/)?.[1];
+      if (fileId) {
+        const id = encodeURIComponent(fileId);
+        return [
+          `https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
+          `https://lh3.googleusercontent.com/d/${id}=w1200`,
+          `https://drive.google.com/uc?export=view&id=${id}`,
+          url.toString()
+        ].filter((value, index, values) => values.indexOf(value) === index);
       }
     }
-    return url.toString();
+    return [url.toString()];
   } catch {
-    return "";
+    return [];
   }
+}
+function imagePreviewUrl(input: string): string {
+  return imagePreviewCandidates(input)[0] || "";
+}
+function handleImagePreviewError(event: React.SyntheticEvent<HTMLImageElement>, input: string) {
+  const image = event.currentTarget;
+  const candidates = imagePreviewCandidates(input);
+  const current = image.src;
+  const next = candidates.find((candidate, index) => index > candidates.findIndex(value => value === current));
+  if (next && next !== current) image.src = next;
+  else image.style.display = "none";
 }
 
 type Profile={id:string;slug:string;name:string;email:string;bio:string;location:string;categories:string[];profileImageUrl:string;heroImageUrl:string;status:string;publishState:string};
@@ -171,8 +188,8 @@ export default function PhotographerPortal(){
      <p style={kicker}>02 — PROFILE PHOTOGRAPHS</p><h2 style={sectionTitle}>Update your pictures</h2>
      <p style={intro}>Choose a new photo, adjust its position and preview the crop. Your current picture stays public until you confirm the new one.</p>
      <div style={grid}>
-      <div><h3 style={subTitle}>Profile picture · Square</h3>{profile.profileImageUrl?<img src={imagePreviewUrl(profile.profileImageUrl)} alt="Current profile picture" style={{width:140,height:140,borderRadius:"50%",objectFit:"cover",marginBottom:12}}/>:<div style={empty}>No profile picture yet</div>}<label style={label}>Choose a new profile picture<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{choose("profile",e.target.files?.[0]);e.currentTarget.value="";}}/></label></div>
-      <div><h3 style={subTitle}>Cover photo · 16:9</h3>{profile.heroImageUrl?<img src={imagePreviewUrl(profile.heroImageUrl)} alt="Current cover photo" style={{width:"100%",aspectRatio:"16 / 9",objectFit:"cover",marginBottom:12}}/>:<div style={{...empty,aspectRatio:"16 / 9"}}>No cover photo yet</div>}<label style={label}>Choose a new cover photo<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{choose("hero",e.target.files?.[0]);e.currentTarget.value="";}}/></label></div>
+      <div><h3 style={subTitle}>Profile picture · Square</h3>{profile.profileImageUrl?<img src={imagePreviewUrl(profile.profileImageUrl)} alt="Current profile picture" onError={e=>handleImagePreviewError(e,profile.profileImageUrl)} style={{width:140,height:140,borderRadius:"50%",objectFit:"cover",marginBottom:12}}/>:<div style={empty}>No profile picture yet</div>}<label style={label}>Choose a new profile picture<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{choose("profile",e.target.files?.[0]);e.currentTarget.value="";}}/></label></div>
+      <div><h3 style={subTitle}>Cover photo · 16:9</h3>{profile.heroImageUrl?<img src={imagePreviewUrl(profile.heroImageUrl)} alt="Current cover photo" onError={e=>handleImagePreviewError(e,profile.heroImageUrl)} style={{width:"100%",aspectRatio:"16 / 9",objectFit:"cover",marginBottom:12}}/>:<div style={{...empty,aspectRatio:"16 / 9"}}>No cover photo yet</div>}<label style={label}>Choose a new cover photo<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{choose("hero",e.target.files?.[0]);e.currentTarget.value="";}}/></label></div>
      </div>
      <p style={note}>JPG, PNG or WebP · Maximum 8 MB. The new photo is uploaded only after you confirm the crop.</p>
     </section>
@@ -189,9 +206,9 @@ export default function PhotographerPortal(){
      {galleryMessage&&<p role="status" style={note}>{galleryMessage}</p>}
      <h3 style={{...subTitle,marginTop:28}}>Your portfolio submissions ({gallery.length})</h3>
      {gallery.length===0?<div style={emptyGallery}>Your portfolio is ready for its first photograph. Choose an image above to get started.</div>:<div style={galleryGrid}>{gallery.map((p,i)=><article key={p.id} style={galleryCard}>
-      <img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Portfolio photograph"} style={{width:"100%",aspectRatio:"4 / 3",objectFit:"cover"}}/>
+      <img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Portfolio photograph"} onError={e=>handleImagePreviewError(e,p.imageUrl)} style={{width:"100%",aspectRatio:"4 / 3",objectFit:"cover"}}/>
       <div style={{padding:12}}><strong>{p.title||"Untitled photograph"}</strong><p style={note}>Status: {p.publishState==="PUBLISHED"?"Published":p.publishState==="PENDING_REVIEW"?"Awaiting admin approval":p.publishState==="CHANGES_REQUESTED"?"Changes requested":p.publishState}</p>{p.category&&<p style={note}>{p.category}</p>}{p.caption&&<p style={note}>{p.caption}</p>}
-       {editing?.id===p.id&&<form onSubmit={savePhotoEdit} style={{display:"grid",gap:8,marginTop:10}}><div><p style={{...note,margin:"0 0 6px"}}>CURRENT UPLOADED PHOTO</p><img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Current portfolio photograph"} style={{display:"block",width:"100%",maxHeight:260,aspectRatio:"4 / 3",objectFit:"contain",background:"#eee9df",border:"1px solid #dedbd3"}}/><p style={note}>To change the actual photograph, choose a replacement below. You will review its crop before saving.</p></div><label style={label}>Title<input style={input} value={editing.title} maxLength={120} onChange={e=>setEditing(v=>v?{...v,title:e.target.value}:v)}/></label><label style={label}>Caption<textarea style={{...input,minHeight:65}} value={editing.caption} maxLength={500} onChange={e=>setEditing(v=>v?{...v,caption:e.target.value}:v)}/></label><label style={label}>Category<input style={input} value={editing.category} maxLength={80} onChange={e=>setEditing(v=>v?{...v,category:e.target.value}:v)}/></label><label style={label}>Replace image (optional)<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&(f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type))){setEditMessage("Choose a JPG, PNG or WebP image up to 8 MB.");}else setEditFile(f||null);e.currentTarget.value="";}}/></label><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><button type="submit" style={primary} disabled={busy}>Save changes{editFile?" and crop image":""}</button><button type="button" style={secondary} onClick={()=>{setEditing(null);setEditFile(null);}}>Cancel</button></div>{editMessage&&<p role="status" style={note}>{editMessage}</p>}</form>}<div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy} onClick={()=>{setEditing({id:p.id,title:p.title,caption:p.caption,category:p.category,altText:p.altText});setEditFile(null);setEditMessage("");}}>Edit</button><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
+       {editing?.id===p.id&&<form onSubmit={savePhotoEdit} style={{display:"grid",gap:8,marginTop:10}}><div><p style={{...note,margin:"0 0 6px"}}>CURRENT UPLOADED PHOTO</p><img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Current portfolio photograph"} onError={e=>handleImagePreviewError(e,p.imageUrl)} style={{display:"block",width:"100%",maxHeight:260,aspectRatio:"4 / 3",objectFit:"contain",background:"#eee9df",border:"1px solid #dedbd3"}}/><p style={note}>To change the actual photograph, choose a replacement below. You will review its crop before saving.</p></div><label style={label}>Title<input style={input} value={editing.title} maxLength={120} onChange={e=>setEditing(v=>v?{...v,title:e.target.value}:v)}/></label><label style={label}>Caption<textarea style={{...input,minHeight:65}} value={editing.caption} maxLength={500} onChange={e=>setEditing(v=>v?{...v,caption:e.target.value}:v)}/></label><label style={label}>Category<input style={input} value={editing.category} maxLength={80} onChange={e=>setEditing(v=>v?{...v,category:e.target.value}:v)}/></label><label style={label}>Replace image (optional)<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&(f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type))){setEditMessage("Choose a JPG, PNG or WebP image up to 8 MB.");}else setEditFile(f||null);e.currentTarget.value="";}}/></label><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><button type="submit" style={primary} disabled={busy}>Save changes{editFile?" and crop image":""}</button><button type="button" style={secondary} onClick={()=>{setEditing(null);setEditFile(null);}}>Cancel</button></div>{editMessage&&<p role="status" style={note}>{editMessage}</p>}</form>}<div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy} onClick={()=>{setEditing({id:p.id,title:p.title,caption:p.caption,category:p.category,altText:p.altText});setEditFile(null);setEditMessage("");}}>Edit</button><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
       </div>
      </article>)}</div>}
     </section>
