@@ -66,7 +66,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         <button type="button" className="ll-toast-close" aria-label="Dismiss notification" onClick={() => setNotice(null)}><X size={17}/></button>
       </div>}
       {dialog && <div className="ll-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) finishConfirm(false); }}>
-        <section className="ll-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ll-dialog-title" aria-describedby="ll-dialog-description">
+        <section className={`ll-dialog ${dialog.roleChange ? "ll-dialog-role" : ""}`} role="alertdialog" aria-modal="true" aria-labelledby="ll-dialog-title" aria-describedby="ll-dialog-description">
           <span className={`ll-dialog-symbol ${dialog.danger ? "is-danger" : dialog.roleChange ? "is-role" : ""}`}>{dialog.danger ? <AlertCircle size={23}/> : dialog.roleChange ? <ShieldCheck size={24}/> : <Info size={23}/>}</span>
           <p className="ll-dialog-eyebrow">{dialog.roleChange ? "LENS & LIGHT · ACCESS CONTROL" : "LENS & LIGHT · CONFIRMATION"}</p>
           <h2 id="ll-dialog-title">{dialog.title}</h2>
