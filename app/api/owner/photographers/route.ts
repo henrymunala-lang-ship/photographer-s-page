@@ -12,6 +12,19 @@ const REQUIRED_HEADERS = [
   "categories", "profile_image_url", "hero_image_url", "status", "publish_state"
 ] as const;
 
+function safeImageUrl(input: string): string {
+  try {
+    const url = new URL(input);
+    if (url.protocol !== "https:") return "";
+    if (url.hostname === "drive.google.com" && url.pathname === "/uc") {
+      const fileId = url.searchParams.get("id");
+      if (!fileId) return "";
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200`;
+    }
+    return url.toString();
+  } catch { return ""; }
+}
+
 function cell(row: string[], headers: string[], key: string): string {
   const index = headers.indexOf(key);
   return index < 0 ? "" : String(row[index] ?? "").trim();
@@ -40,8 +53,8 @@ export async function GET() {
       bio: cell(row, headers, "bio"),
       location: cell(row, headers, "primary_location"),
       categories: cell(row, headers, "categories").split(/[;,]/).map((value) => value.trim()).filter(Boolean),
-      profileImageUrl: cell(row, headers, "profile_image_url"),
-      heroImageUrl: cell(row, headers, "hero_image_url"),
+      profileImageUrl: safeImageUrl(cell(row, headers, "profile_image_url")),
+      heroImageUrl: safeImageUrl(cell(row, headers, "hero_image_url")),
       status: cell(row, headers, "status"),
       publishState: cell(row, headers, "publish_state"),
       hasAccount: accounts.has(cell(row, headers, "photographer_id")),
