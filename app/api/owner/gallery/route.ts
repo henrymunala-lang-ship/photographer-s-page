@@ -51,7 +51,7 @@ export async function GET(request:NextRequest) {
     // heuristics previously hid originals based on stale album links; that can
     // conceal a row that has since been reused for an in-place replacement.
     const photos=rows.map((row,index)=>({row,rowNumber:index+2}))
-      .filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url"))
+      .filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url")&&cell(x.row,headers,"publish_state").toUpperCase()!=="REMOVED_FROM_GALLERY")
       .map(x=>({
       id:cell(x.row,headers,"photo_id"),photographerId:cell(x.row,headers,"photographer_id"),
       photographerName:names.get(cell(x.row,headers,"photographer_id"))||"Photographer",
@@ -83,4 +83,27 @@ export async function PATCH(request:NextRequest) {
     });
     return json({ok:true,publishState});
   } catch(error) { return json({error:error instanceof Error?error.message:"Gallery moderation could not be saved."},503); }
+}
+
+export async function DELETE(request:NextRequest) {
+  const auth=await authorized(request,true); if("error" in auth)return auth.error;
+  if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return json({error:"Invalid request."},415);
+  try {
+    const body=await request.json(), photoId=typeof body?.photoId==="string"?body.photoId.trim():"";
+    if(!/^[A-Za-z0-9_-]{1,128}$/.test(photoId))return json({error:"Choose a valid photograph."},400);
+    const {headers,rows}=await table();
+    const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>cell(x.row,headers,"photo_id")===photoId);
+    if(matches.length!==1)return json({error:matches.length?"Duplicate photo IDs require manual reconciliation.":"Portfolio photograph not found."},matches.length?409:404);
+    const match=matches[0],previous=cell(match.row,headers,"publish_state").toUpperCase();
+    if(previous==="PUBLISHED")return json({error:"Published photographs cannot be removed here. Unpublish them first."},409);
+    if(previous==="REMOVED_FROM_GALLERY")return json({ok:true,removed:true});
+    const column=headers.indexOf("publish_state");
+    await batchUpdateValues([{range:`'04_GALLERY'!${col(column)}${match.rowNumber}`,values:[["REMOVED_FROM_GALLERY"]]}]);
+    await appendAudit(auth.actor,"gallery.photo.removed","gallery_photo",photoId,{
+      previousPublishState:previous||"UNPUBLISHED",publishState:"REMOVED_FROM_GALLERY",
+      photographerId:cell(match.row,headers,"photographer_id"),workbookRow:match.rowNumber,
+      driveFileRetained:true
+    });
+    return json({ok:true,removed:true});
+  } catch(error) { return json({error:error instanceof Error?error.message:"Gallery photograph could not be removed."},503); }
 }
