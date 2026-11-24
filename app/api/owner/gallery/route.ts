@@ -47,21 +47,17 @@ export async function GET(request:NextRequest) {
     const nameIndex=ph.indexOf("public_name"),idIndex=ph.indexOf("photographer_id");
     const names=new Map<string,string>();
     for(const row of photographers.slice(1)){const id=String(row[idIndex]??"").trim();if(id)names.set(id,String(row[nameIndex]??"").trim());}
-    // Legacy replacement rows used album_id="replacement:<oldPhotoId>".
-    // Only suppress an old original after its legacy replacement is actually
-    // published AND the original itself is still unpublished. If the original
-    // record has since been reused for an in-place replacement, its
-    // PENDING_REVIEW state must remain visible to admins.
-    const publishedLegacyReplacementTargets=new Set(rows
-      .filter(row=>cell(row,headers,"album_id").startsWith("replacement:")&&cell(row,headers,"publish_state").toUpperCase()==="PUBLISHED")
-      .map(row=>cell(row,headers,"album_id").slice("replacement:".length)));
+    // Show every identifiable gallery row in moderation. Legacy replacement
+    // heuristics previously hid originals based on stale album links; that can
+    // conceal a row that has since been reused for an in-place replacement.
     const photos=rows.map((row,index)=>({row,rowNumber:index+2}))
       .filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url"))
-      .filter(x=>!(publishedLegacyReplacementTargets.has(cell(x.row,headers,"photo_id"))&&cell(x.row,headers,"publish_state").toUpperCase()==="UNPUBLISHED")).map(x=>({
+      .map(x=>({
       id:cell(x.row,headers,"photo_id"),photographerId:cell(x.row,headers,"photographer_id"),
       photographerName:names.get(cell(x.row,headers,"photographer_id"))||"Photographer",
       title:cell(x.row,headers,"title"),caption:cell(x.row,headers,"caption"),imageUrl:safeImageUrl(cell(x.row,headers,"image_preview_url")),
       altText:cell(x.row,headers,"alt_text"),category:cell(x.row,headers,"category"),
+      albumId:cell(x.row,headers,"album_id"),rowNumber:x.rowNumber,
       publishState:cell(x.row,headers,"publish_state").toUpperCase()||"UNPUBLISHED",
       sortOrder:Number(cell(x.row,headers,"sort_order"))||0
     })).sort((a,b)=>a.photographerName.localeCompare(b.photographerName)||a.sortOrder-b.sortOrder);
