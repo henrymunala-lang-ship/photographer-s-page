@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, MapPin, Search, SlidersHorizontal, Menu } from "lucide-react";
+import { PageSkeleton } from "@/components/page-skeleton";
 
 type Photographer = {
   id: string;
@@ -79,7 +80,7 @@ export default function PhotographersPage() {
         <div className="directory-filters">{types.map((item) => <button key={item} className={type === item ? "selected" : ""} onClick={() => setType(item)}>{item}</button>)}</div>
       </div>
       <div className="directory-result-head"><span>{loading ? "LOADING PHOTOGRAPHERS" : `${filtered.length} PHOTOGRAPHERS`}</span><span>APPROVED · PUBLISHED LISTINGS</span></div>
-      {loading ? <div className="directory-empty" role="status"><Camera size={28}/><h2>Finding photographers…</h2><p>Loading the latest approved and published profiles.</p></div> :
+      {loading ? <PageSkeleton label="Finding photographers" variant="gallery"/> :
         unavailable ? <div className="directory-empty" role="alert"><Camera size={28}/><h2>Photographers are temporarily unavailable.</h2><p>Please try again in a little while.</p><button onClick={() => window.location.reload()}>Try again</button></div> :
         filtered.length > 0 ? <div className="directory-grid">{filtered.map((photographer) => {
           const category = photographer.categories[0] || "Photography";
