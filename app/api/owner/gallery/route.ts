@@ -63,15 +63,22 @@ export async function PATCH(request:NextRequest) {
   if(!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return json({error:"Invalid request."},415);
   try {
     const body=await request.json(), photoId=typeof body?.photoId==="string"?body.photoId.trim():"", publishState=typeof body?.publishState==="string"?body.publishState.toUpperCase():"";
-    if(!/^[A-Za-z0-9_-]{1,128}$/.test(photoId)||!["PUBLISHED","UNPUBLISHED"].includes(publishState))return json({error:"Choose a valid photo and publication state."},400);
+    if(!/^[A-Za-z0-9_-]{1,128}$/.test(photoId)||!["PUBLISHED","UNPUBLISHED","PENDING_REVIEW","CHANGES_REQUESTED"].includes(publishState))return json({error:"Choose a valid photo and publication state."},400);
     const {headers,rows}=await table();
     const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>cell(x.row,headers,"photo_id")===photoId);
     if(matches.length!==1)return json({error:matches.length?"Duplicate photo IDs require manual reconciliation.":"Portfolio photograph not found."},matches.length?409:404);
     const match=matches[0],previous=cell(match.row,headers,"publish_state").toUpperCase();
     if(previous===publishState)return json({ok:true,publishState});
     const column=headers.indexOf("publish_state");
-    await batchUpdateValues([{range:`'04_GALLERY'!${col(column)}${match.rowNumber}`,values:[[publishState]]}]);
-    await appendAudit(auth.actor,"gallery.photo.moderated","gallery_photo",photoId,{previousPublishState:previous||"UNPUBLISHED",publishState,photographerId:cell(match.row,headers,"photographer_id")});
+    const writes=[{range:`'04_GALLERY'!${col(column)}${match.rowNumber}`,values:[[publishState]]}];
+    const albumId=cell(match.row,headers,"album_id");
+    if(publishState==="PUBLISHED"&&albumId.startsWith("replacement:")){
+      const replacedId=albumId.slice("replacement:".length);
+      const prior=rows.map((row,index)=>({row,rowNumber:index+2})).find(x=>cell(x.row,headers,"photo_id")===replacedId&&cell(x.row,headers,"photographer_id")===cell(match.row,headers,"photographer_id")&&cell(x.row,headers,"publish_state").toUpperCase()==="PUBLISHED");
+      if(prior)writes.push({range:`'04_GALLERY'!${col(column)}${prior.rowNumber}`,values:[["UNPUBLISHED"]]});
+    }
+    await batchUpdateValues(writes);
+    await appendAudit(auth.actor,"gallery.photo.moderated","gallery_photo",photoId,{previousPublishState:previous||"UNPUBLISHED",publishState,photographerId:cell(match.row,headers,"photographer_id"),replacementOf:albumId.startsWith("replacement:")?albumId.slice("replacement:".length):null});
     return json({ok:true,publishState});
   } catch(error) { return json({error:error instanceof Error?error.message:"Gallery moderation could not be saved."},503); }
 }
