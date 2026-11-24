@@ -18,6 +18,20 @@ function sameOrigin(request: NextRequest) {
   if (!origin) return false;
   try { return new URL(origin).host === request.headers.get("host"); } catch { return false; }
 }
+function safeImageUrl(input: string): string {
+  try {
+    const url = new URL(input);
+    if (url.protocol !== "https:") return "";
+    if (url.hostname === "drive.google.com" && url.pathname === "/uc") {
+      const fileId = url.searchParams.get("id");
+      if (!fileId) return "";
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
 function value(row: Row, headers: string[], key: string) {
   const index = headers.indexOf(key);
   return index < 0 ? "" : String(row[index] ?? "").trim();
@@ -79,7 +93,7 @@ export async function GET(request: NextRequest) {
         id:value(item.row,headers,"photo_id"),
         title:value(item.row,headers,"title"),
         caption:value(item.row,headers,"caption"),
-        imageUrl:value(item.row,headers,"image_preview_url"),
+        imageUrl:safeImageUrl(value(item.row,headers,"image_preview_url")),
         altText:value(item.row,headers,"alt_text"),
         category:value(item.row,headers,"category"),
         sortOrder:Number(value(item.row,headers,"sort_order"))||0
@@ -120,7 +134,7 @@ export async function POST(request: NextRequest) {
     };
     await batchUpdateValues(rowWrites(headers,rowNumber,fields));
     await audit(auth.session,"photographer.gallery_photo.added",photoId,{storage:"google_drive",fileId:uploaded.fileId,category});
-    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:uploaded.url,altText:fields.alt_text,category,sortOrder}});
+    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(uploaded.url),altText:fields.alt_text,category,sortOrder}});
   } catch {
     return noStore({error:"Your portfolio image could not be saved. Your existing gallery has not been changed."},503);
   }
@@ -147,7 +161,7 @@ export async function PUT(request: NextRequest) {
     if(image instanceof File){const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");imageUrl=uploaded.url;fileId=uploaded.fileId;}
     await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category,image_preview_url:imageUrl}));
     await audit(auth.session,"photographer.gallery_photo.edited",photoId,{imageReplaced:!!fileId,fileId,category});
-    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl,altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0}});
+    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(imageUrl),altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0}});
   }catch{return noStore({error:"Your portfolio edit could not be saved. The existing photograph remains unchanged."},503);}
 }
 
