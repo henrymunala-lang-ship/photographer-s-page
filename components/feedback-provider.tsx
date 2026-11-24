@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Info, ShieldCheck, UserRound, X } from "lucide-react";
 
 type NoticeKind = "success" | "error" | "info";
-type ConfirmOptions = { title: string; description: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean };
+type ConfirmOptions = { title: string; description: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean; roleChange?: { person: string; from: string; to: string } };
 type FeedbackApi = { notify: (message: string, kind?: NoticeKind, title?: string) => void; confirm: (options: ConfirmOptions) => Promise<boolean> };
 type Notice = { id: number; message: string; kind: NoticeKind; title: string };
 const FeedbackContext = createContext<FeedbackApi | null>(null);
@@ -67,10 +67,10 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       </div>}
       {dialog && <div className="ll-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) finishConfirm(false); }}>
         <section className="ll-dialog" role="alertdialog" aria-modal="true" aria-labelledby="ll-dialog-title" aria-describedby="ll-dialog-description">
-          <span className={`ll-dialog-symbol ${dialog.danger ? "is-danger" : ""}`}>{dialog.danger ? <AlertCircle size={23}/> : <Info size={23}/>}</span>
-          <p className="ll-dialog-eyebrow">LENS &amp; LIGHT · CONFIRMATION</p>
+          <span className={`ll-dialog-symbol ${dialog.danger ? "is-danger" : dialog.roleChange ? "is-role" : ""}`}>{dialog.danger ? <AlertCircle size={23}/> : dialog.roleChange ? <ShieldCheck size={24}/> : <Info size={23}/>}</span>
+          <p className="ll-dialog-eyebrow">{dialog.roleChange ? "LENS & LIGHT · ACCESS CONTROL" : "LENS & LIGHT · CONFIRMATION"}</p>
           <h2 id="ll-dialog-title">{dialog.title}</h2>
-          <p id="ll-dialog-description">{dialog.description}</p>
+          {dialog.roleChange ? <><div className="ll-role-person"><span><UserRound size={19}/></span><div><small>ADMINISTRATOR</small><strong>{dialog.roleChange.person}</strong></div></div><div className="ll-role-transition"><div className="ll-role-step"><small>CURRENT DUTIES</small><strong>{dialog.roleChange.from}</strong></div><span className="ll-role-arrow"><ArrowRight size={19}/></span><div className="ll-role-step ll-role-next"><small>NEW DUTIES</small><strong>{dialog.roleChange.to}</strong></div></div><p className="ll-role-note" id="ll-dialog-description"><ShieldCheck size={16}/> {dialog.description}</p></> : <p id="ll-dialog-description">{dialog.description}</p>}
           <div className="ll-dialog-actions">
             <button type="button" className="ll-dialog-cancel" onClick={() => finishConfirm(false)}>{dialog.cancelLabel || "Cancel"}</button>
             <button type="button" className={`ll-dialog-confirm ${dialog.danger ? "is-danger" : ""}`} onClick={() => finishConfirm(true)}>{dialog.confirmLabel || "Confirm"}</button>
