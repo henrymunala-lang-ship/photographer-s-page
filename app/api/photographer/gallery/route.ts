@@ -158,26 +158,27 @@ export async function PUT(request: NextRequest) {
     const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>value(x.row,headers,"photo_id")===photoId&&value(x.row,headers,"photographer_id")===auth.session.record.id&&["PUBLISHED","PENDING_REVIEW","CHANGES_REQUESTED"].includes(value(x.row,headers,"publish_state").toUpperCase()));
     if(matches.length!==1)return noStore({error:"That portfolio photograph could not be found."},404);
     const match=matches[0];
-    let imageUrl=value(match.row,headers,"image_preview_url"),fileId="",resultPhotoId=photoId,publishState=value(match.row,headers,"publish_state").toUpperCase();
+    let imageUrl=value(match.row,headers,"image_preview_url"),fileId="",publishState=value(match.row,headers,"publish_state").toUpperCase();
     if(image instanceof File){
       const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");
-      fileId=uploaded.fileId; imageUrl=uploaded.url;
-      publishState=publishState==="PUBLISHED"?"PENDING_REVIEW":publishState;
-      const fields={title,caption,image_preview_url:imageUrl,alt_text:altText||title||"Portfolio photograph",category,publish_state:publishState};
-      if(value(match.row,headers,"publish_state").toUpperCase()==="PUBLISHED"){
-        const empty=rows.findIndex(row=>!row.some(cell=>String(cell??"").trim()));
-        const rowNumber=empty>=0?empty+2:rows.length+2;
-        if(rowNumber>1001)return noStore({error:"Your portfolio has reached its current storage limit. Contact Lens & Light for assistance."},409);
-        resultPhotoId="photo_"+randomBytes(12).toString("hex");
-        await batchUpdateValues(rowWrites(headers,rowNumber,{...fields,photo_id:resultPhotoId,photographer_id:auth.session.record.id,album_id:"replacement:"+photoId,sort_order:value(match.row,headers,"sort_order")||"1",featured:"FALSE"}));
-      } else {
-        await batchUpdateValues(rowWrites(headers,match.rowNumber,fields));
-      }
-    } else {
-      await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category}));
+      fileId=uploaded.fileId;
+      imageUrl=uploaded.url;
+      // Replace the existing row in place. A replacement must go through moderation,
+      // and the previous image is no longer publicly served while review is pending.
+      publishState="PENDING_REVIEW";
+    } else if(publishState==="CHANGES_REQUESTED") {
+      // Saving corrections is the photographer's resubmission action.
+      publishState="PENDING_REVIEW";
     }
-    await audit(auth.session,"photographer.gallery_photo.edited",resultPhotoId,{imageReplaced:!!fileId,fileId,category,previousPhotoId:image instanceof File?photoId:null,publishState});
-    return noStore({ok:true,photo:{id:resultPhotoId,title,caption,imageUrl:safeImageUrl(imageUrl),altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0,publishState}});
+    await batchUpdateValues(rowWrites(headers,match.rowNumber,{
+      title,caption,image_preview_url:imageUrl,
+      alt_text:altText||title||"Portfolio photograph",category,publish_state:publishState
+    }));
+    await audit(auth.session,"photographer.gallery_photo.edited",photoId,{
+      imageReplaced:!!fileId,fileId,category,resubmittedFrom: value(match.row,headers,"publish_state").toUpperCase()==="CHANGES_REQUESTED"?"CHANGES_REQUESTED":null,
+      publishState,recordUpdatedInPlace:true
+    });
+    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(imageUrl),altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0,publishState}});
   }catch{return noStore({error:"Your portfolio edit could not be saved. The existing photograph remains unchanged."},503);}
 }
 
