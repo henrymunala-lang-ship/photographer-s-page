@@ -187,7 +187,7 @@ export default function PhotographerPortal(){
    <div style={{width:"100%",maxWidth:stage.kind==="profile"?330:580,aspectRatio:stage.kind==="profile"?"1 / 1":stage.kind==="hero"?"16 / 9":"4 / 3",overflow:"hidden",background:"#e8e3da",margin:"16px auto"}}><img src={stage.url} alt="Crop preview" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:(stage.x*100)+"% "+(stage.y*100)+"%"}}/></div>
    <label style={label}>Horizontal position<input type="range" min="0" max="1" step=".01" value={stage.x} onChange={e=>setStage(v=>v?{...v,x:Number(e.target.value)}:v)}/></label>
    <label style={{...label,marginTop:12}}>Vertical position<input type="range" min="0" max="1" step=".01" value={stage.y} onChange={e=>setStage(v=>v?{...v,y:Number(e.target.value)}:v)}/></label>
-   <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:22,flexWrap:"wrap"}}><button type="button" style={secondary} disabled={stageBusy} onClick={()=>setStage(null)}>Cancel</button><button type="button" style={primary} disabled={stageBusy} onClick={()=>void confirmStage()}>{stageBusy?"Saving image…":stage.kind==="gallery"?"Add to portfolio":"Save new picture"}</button></div>
+   <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:22,flexWrap:"wrap"}}><button type="button" style={secondary} disabled={stageBusy} onClick={()=>setStage(null)}>Cancel</button><button type="button" style={primary} disabled={stageBusy} onClick={()=>void confirmStage()}>{stageBusy?"Saving image…":stage.kind==="gallery"?"Submit for admin review":stage.kind==="gallery-edit"?"Submit replacement for review":"Save new picture"}</button></div>
   </section></div>}
  </main>;
 }
