@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useFeedback } from "@/components/feedback-provider";
+import { PageSkeleton } from "@/components/page-skeleton";
 
 function imagePreviewCandidates(input: string): string[] {
   if (!input) return [];
@@ -162,6 +163,7 @@ export default function PhotographerPortal(){
   finally{setBusy(false);}
  }
  async function logout(){await fetch("/api/photographer/auth/logout",{method:"POST"});window.location.href="/photographer/login";}
+ if(loading)return <PageSkeleton label="Opening your photographer workspace" variant="profile"/>;
  return <main style={{minHeight:"100vh",background:"#f5f2ec",padding:"34px 18px 70px",color:"#25231f"}}>
   <div style={{maxWidth:980,margin:"0 auto"}}>
    <header style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:38}}>
