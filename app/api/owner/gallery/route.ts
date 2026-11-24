@@ -14,6 +14,18 @@ function sameOrigin(request: NextRequest) {
 }
 function col(index: number) { let n=index+1,s=""; while(n){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s; }
 function cell(row:string[], headers:string[], key:string) { const i=headers.indexOf(key); return i<0?"":String(row[i]??"").trim(); }
+function safeImageUrl(input:string) {
+  try {
+    const url=new URL(input);
+    if(url.protocol!=="https:")return "";
+    if(url.hostname==="drive.google.com"&&url.pathname==="/uc") {
+      const fileId=url.searchParams.get("id");
+      if(!fileId)return "";
+      return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
+    }
+    return url.toString();
+  } catch { return ""; }
+}
 async function table() {
   const values=await readValues("'04_GALLERY'!A1:Z1001");
   const headers=(values[0]??[]).map(v=>String(v??"").trim());
@@ -38,7 +50,7 @@ export async function GET(request:NextRequest) {
     const photos=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url")).map(x=>({
       id:cell(x.row,headers,"photo_id"),photographerId:cell(x.row,headers,"photographer_id"),
       photographerName:names.get(cell(x.row,headers,"photographer_id"))||"Photographer",
-      title:cell(x.row,headers,"title"),caption:cell(x.row,headers,"caption"),imageUrl:cell(x.row,headers,"image_preview_url"),
+      title:cell(x.row,headers,"title"),caption:cell(x.row,headers,"caption"),imageUrl:safeImageUrl(cell(x.row,headers,"image_preview_url")),
       altText:cell(x.row,headers,"alt_text"),category:cell(x.row,headers,"category"),
       publishState:cell(x.row,headers,"publish_state").toUpperCase()||"UNPUBLISHED",
       sortOrder:Number(cell(x.row,headers,"sort_order"))||0
