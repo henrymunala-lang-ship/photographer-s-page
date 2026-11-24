@@ -85,3 +85,113 @@
 @keyframes ll-shimmer{100%{transform:translateX(100%)}}@keyframes ll-pulse{50%{box-shadow:0 0 0 9px rgba(167,140,104,0)}}
 @media(max-width:650px){.ll-page-loading{padding:22px 6%}.ll-loading-intro{margin-top:48px}.ll-loading-feature{grid-template-columns:1fr;min-height:0}.ll-loading-feature-image{height:170px;grid-row:1}.ll-loading-cards,.ll-loading-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.ll-loading-card:last-child{display:none}.ll-role-transition{grid-template-columns:minmax(0,1fr) 25px minmax(0,1fr);gap:5px}.ll-role-step{padding:10px;min-height:94px}.ll-role-step strong{font-size:11px}.ll-role-step small{font-size:8px}.ll-dialog-actions{display:grid;grid-template-columns:1fr 1fr}.ll-dialog-actions button{width:100%}}
 @media(prefers-reduced-motion:reduce){.ll-skeleton:after,.ll-loading-pulse{animation:none}}
+
+
+/* High-visibility light treatment for administrator role changes */
+.ll-dialog-role{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  width:min(100%,560px);
+  padding:34px clamp(24px,5vw,38px) 30px;
+  background:linear-gradient(155deg,#fffefa 0%,#f8f4eb 100%)!important;
+  border:1px solid #c9ad7d!important;
+  border-top:5px solid #b18a50!important;
+  border-radius:22px!important;
+  box-shadow:0 32px 100px rgba(34,29,20,.32),0 0 0 5px rgba(199,165,111,.16)!important;
+}
+.ll-dialog-role:after{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  width:230px;height:230px;
+  right:-100px;top:-110px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(198,164,108,.18),rgba(198,164,108,0) 70%);
+  pointer-events:none;
+}
+.ll-dialog-role .ll-dialog-symbol.is-role{
+  width:60px;height:60px;margin-bottom:15px;
+  border-radius:17px;
+  background:#eee2ca!important;
+  border:1px solid #d7bd91;
+  color:#76552b!important;
+  box-shadow:0 5px 16px rgba(130,99,51,.12);
+}
+.ll-dialog-role .ll-dialog-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 11px;margin:0 0 13px;
+  border:1px solid #e4d2b2;border-radius:999px;
+  background:#f5eddf;color:#80613a;
+  font-size:9px;font-weight:800;letter-spacing:.16em;
+}
+.ll-dialog-role .ll-dialog-eyebrow:before{
+  content:"";width:7px;height:7px;border-radius:50%;background:#b18a50;
+  box-shadow:0 0 0 3px rgba(177,138,80,.15);
+}
+.ll-dialog-role h2{
+  max-width:440px;margin-bottom:18px;
+  font-size:clamp(29px,5vw,37px);line-height:1.12;
+  color:#28251f;letter-spacing:-.035em;
+}
+.ll-dialog-role .ll-role-person{
+  background:#fffefa;border-color:#e6ddce;
+  box-shadow:0 3px 12px rgba(68,54,34,.045);
+}
+.ll-dialog-role .ll-role-person>span{
+  width:44px;height:44px;border-radius:13px;
+  background:#eee4d2;color:#795a31;
+}
+.ll-dialog-role .ll-role-transition{gap:10px}
+.ll-dialog-role .ll-role-step{
+  min-height:104px;padding:15px;
+  border-radius:14px;background:#fffefa;border-color:#e1d9cc;
+  box-shadow:0 3px 12px rgba(68,54,34,.04);
+}
+.ll-dialog-role .ll-role-step small{font-size:9px;letter-spacing:.14em;color:#817563}
+.ll-dialog-role .ll-role-step strong{font-size:14px;color:#555047}
+.ll-dialog-role .ll-role-next{
+  background:linear-gradient(145deg,#f5ead5,#efe0c3)!important;
+  border:1px solid #c8a66e!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.65),0 5px 16px rgba(137,102,51,.11)!important;
+}
+.ll-dialog-role .ll-role-next small{color:#7e5b2c}
+.ll-dialog-role .ll-role-next strong{color:#65471f;font-weight:700}
+.ll-dialog-role .ll-role-arrow{
+  width:32px;height:32px;align-self:center;justify-self:center;
+  border-radius:50%;background:#e9ddc8;color:#76572e;
+}
+.ll-dialog-role .ll-role-note{
+  background:#f0ede5!important;border:1px solid #e4ddd0;
+  color:#625b50!important;border-radius:12px;
+  padding:13px 14px!important;font-size:11px!important;
+}
+.ll-dialog-role .ll-dialog-actions{
+  justify-content:space-between;align-items:center;
+  margin-top:24px;padding-top:19px;border-top:1px solid #e9e0d1;
+}
+.ll-dialog-role .ll-dialog-cancel{
+  min-width:105px;background:#fffefa;border:1px solid #d8d0c3;
+  color:#5e584e;border-radius:10px;
+}
+.ll-dialog-role .ll-dialog-confirm{
+  min-width:175px;min-height:49px;
+  background:linear-gradient(135deg,#c6a36d,#a98147)!important;
+  border:1px solid #a98147!important;
+  color:#fff!important;border-radius:10px;
+  font-weight:800;letter-spacing:.015em;
+  box-shadow:0 7px 18px rgba(145,105,49,.25);
+}
+.ll-dialog-role .ll-dialog-confirm:hover{
+  background:linear-gradient(135deg,#ad8953,#896438)!important;
+  box-shadow:0 9px 22px rgba(145,105,49,.32);
+  transform:translateY(-1px);
+}
+@media(max-width:560px){
+  .ll-dialog-role{padding:25px 19px 21px;border-radius:18px!important}
+  .ll-dialog-role .ll-role-transition{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:5px}
+  .ll-dialog-role .ll-role-step{min-height:100px;padding:10px}
+  .ll-dialog-role .ll-role-step strong{font-size:12px}
+  .ll-dialog-role .ll-dialog-actions{display:grid;grid-template-columns:.8fr 1.2fr}
+  .ll-dialog-role .ll-dialog-actions button{width:100%;min-width:0}
+}
