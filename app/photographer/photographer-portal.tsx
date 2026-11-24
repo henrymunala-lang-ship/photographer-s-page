@@ -73,7 +73,7 @@ export default function PhotographerPortal(){
    const r=await fetch(url,{method:editingMode?"PUT":"POST",body:form}),d=await r.json();
    if(!r.ok)throw new Error(d.error||"Image could not be saved.");
    if(galleryMode){
-    if(editingMode){setGallery(v=>d.photo.id===editing?.id?v.map(p=>p.id===d.photo.id?d.photo:p):[...v,d.photo]);setEditing(null);setEditFile(null);setEditMessage(d.photo.id===editing?.id?"Portfolio details updated.":"Replacement submitted for admin approval. Your previously approved photo remains public until the new one is approved.");}
+    if(editingMode){const replacedImage=!!editFile;setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage(replacedImage?"Replacement saved to the existing gallery record and submitted for admin approval. The previous image is hidden until approval.":d.photo.publishState==="PENDING_REVIEW"?"Corrections resubmitted for admin approval.":"Portfolio details updated.");}
     else{setGallery(v=>[...v,d.photo].sort((a,b)=>a.sortOrder-b.sortOrder));setTitle("");setCaption("");setCategory("");setGalleryMessage("Photograph uploaded and sent to the admin review queue. It will appear publicly after approval.");
     if(fileUrl)URL.revokeObjectURL(fileUrl);setFileUrl("");setFile(null);
    }}else{
