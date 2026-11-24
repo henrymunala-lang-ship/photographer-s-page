@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { Camera } from "lucide-react";
+import { Camera, Eye, EyeOff } from "lucide-react";
 
 export default function CreateApplicantAccountPage() {
   const [password, setPassword] = useState("");
@@ -10,6 +10,8 @@ export default function CreateApplicantAccountPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [created, setCreated] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,9 +48,9 @@ export default function CreateApplicantAccountPage() {
           {created ? <p role="status" style={{ lineHeight: 1.7 }}>{notice} <Link href="/photographer/login" style={{ textDecoration: "underline", fontWeight: 700 }}>Sign in</Link>.</p> : (
             <form onSubmit={submit} style={{ display: "grid", gap: 12, marginTop: 22 }}>
               <label htmlFor="applicant-password" style={{ fontSize: 13, fontWeight: 700 }}>Password (at least 12 characters)</label>
-              <input id="applicant-password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: 13, border: "1px solid #d7d0c4", borderRadius: 5, font: "inherit", background: "#fff" }} />
+              <div style={passwordField}><input id="applicant-password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={event => setPassword(event.target.value)} style={passwordInput} /><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} style={toggle}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
               <label htmlFor="applicant-confirm" style={{ fontSize: 13, fontWeight: 700 }}>Confirm password</label>
-              <input id="applicant-confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={confirmation} onChange={event => setConfirmation(event.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: 13, border: "1px solid #d7d0c4", borderRadius: 5, font: "inherit", background: "#fff" }} />
+              <div style={passwordField}><input id="applicant-confirm" type={showConfirmation ? "text" : "password"} autoComplete="new-password" minLength={12} maxLength={128} required value={confirmation} onChange={event => setConfirmation(event.target.value)} style={passwordInput} /><button type="button" onClick={() => setShowConfirmation(value => !value)} aria-label={showConfirmation ? "Hide confirmation" : "Show confirmation"} aria-pressed={showConfirmation} style={toggle}>{showConfirmation ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
               <button disabled={busy} type="submit" style={{ justifySelf: "start", marginTop: 6, padding: "13px 18px", background: "#282722", color: "white", border: 0, borderRadius: 4, cursor: "pointer" }}>{busy ? "Creating account…" : "Create sign-in account"}</button>
               {notice && <p role="status" style={{ color: "#8a5b35", fontSize: 13, lineHeight: 1.6 }}>{notice} {notice.toLowerCase().includes("sign in") && <Link href="/photographer/login" style={{ textDecoration: "underline", fontWeight: 700 }}>Go to sign in</Link>}</p>}
             </form>
@@ -59,3 +61,7 @@ export default function CreateApplicantAccountPage() {
     </main>
   );
 }
+
+const passwordField: React.CSSProperties = { display: "flex", alignItems: "center", width: "100%", boxSizing: "border-box", border: "1px solid #d7d0c4", borderRadius: 5, background: "#fff" };
+const passwordInput: React.CSSProperties = { flex: 1, minWidth: 0, boxSizing: "border-box", padding: 13, border: 0, borderRadius: 5, font: "inherit", background: "transparent", outlineOffset: 2 };
+const toggle: React.CSSProperties = { display: "grid", placeItems: "center", padding: "10px 12px", border: 0, background: "transparent", color: "#625d54", cursor: "pointer" };
