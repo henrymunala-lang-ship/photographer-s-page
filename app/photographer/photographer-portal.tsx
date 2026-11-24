@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useFeedback } from "@/components/feedback-provider";
 
 function imagePreviewCandidates(input: string): string[] {
   if (!input) return [];
@@ -65,6 +66,7 @@ function makeCrop(file:File,aspect:number,x:number,y:number):Promise<File>{
 }
 
 export default function PhotographerPortal(){
+ const { notify, confirm } = useFeedback();
  const [profile,setProfile]=useState<Profile|null>(null),[draft,setDraft]=useState<Draft>(blank),[gallery,setGallery]=useState<Photo[]>([]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[stageBusy,setStageBusy]=useState(false);
  const [stage,setStage]=useState<Stage|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[galleryMessage,setGalleryMessage]=useState("");
@@ -91,7 +93,7 @@ export default function PhotographerPortal(){
  useEffect(()=>()=>{if(fileUrl)URL.revokeObjectURL(fileUrl);},[fileUrl]);
  function choose(kind:Stage["kind"],f?:File){
   if(!f)return;
-  if(f.size<1||f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type)){setError("Choose a JPG, PNG or WebP image up to 8 MB.");return;}
+  if(f.size<1||f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type)){notify("Choose a JPG, PNG or WebP image up to 8 MB.","error","Image not accepted");return;}
   setError("");setMessage("");setStage({kind,file:f,url:URL.createObjectURL(f),x:.5,y:.5});
  }
  async function confirmStage(){
@@ -107,12 +109,12 @@ export default function PhotographerPortal(){
    const r=await fetch(url,{method:editingMode?"PUT":"POST",body:form}),d=await r.json();
    if(!r.ok)throw new Error(d.error||"Image could not be saved.");
    if(galleryMode){
-    if(editingMode){const replacedImage=!!editFile;setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage(replacedImage?"Replacement saved to the existing gallery record and submitted for admin approval. The previous image is hidden until approval.":d.photo.publishState==="PENDING_REVIEW"?"Corrections resubmitted for admin approval.":"Portfolio details updated.");}
-    else{setGallery(v=>[...v,d.photo].sort((a,b)=>a.sortOrder-b.sortOrder));setTitle("");setCaption("");setCategory("");setGalleryMessage("Photograph uploaded and sent to the admin review queue. It will appear publicly after approval.");
+    if(editingMode){const replacedImage=!!editFile;setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage(replacedImage?"Replacement saved to the existing gallery record and submitted for admin approval. The previous image is hidden until approval.":d.photo.publishState==="PENDING_REVIEW"?"Corrections resubmitted for admin approval.":"Portfolio details updated.");notify(replacedImage?"The replacement photo is awaiting admin approval.":d.photo.publishState==="PENDING_REVIEW"?"Your corrections have been resubmitted for review.":"Portfolio details updated.","success","Portfolio updated");}
+    else{setGallery(v=>[...v,d.photo].sort((a,b)=>a.sortOrder-b.sortOrder));setTitle("");setCaption("");setCategory("");setGalleryMessage("Photograph uploaded and sent to the admin review queue. It will appear publicly after approval.");notify("Your photograph is uploaded and awaiting admin approval before it appears publicly.","success","Portfolio photo submitted");
     if(fileUrl)URL.revokeObjectURL(fileUrl);setFileUrl("");setFile(null);
    }}else{
     const key=stage.kind==="profile"?"profileImageUrl":"heroImageUrl";
-    setProfile(v=>v?{...v,[key]:d.url}:v);setMessage(stage.kind==="profile"?"Your new profile picture is live.":"Your new cover photo is live.");
+    setProfile(v=>v?{...v,[key]:d.url}:v);notify(stage.kind==="profile"?"Your new profile picture has been saved.":"Your new cover photo has been saved.","success","Image updated");
    }
    setStage(null);
   }catch(e){setError(e instanceof Error?e.message:"Image could not be saved.");}
@@ -125,7 +127,7 @@ export default function PhotographerPortal(){
    const r=await fetch("/api/photographer/profile",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();
    if(!r.ok)throw new Error(d.error||"Profile details could not be saved.");
    setProfile(v=>v?{...v,slug:d.slug||v.slug,name:draft.publicName,bio:draft.bio,location:draft.location,categories:payload.categories}:v);
-   setMessage(d.unchanged?"Your profile is already up to date.":"Your profile details have been saved.");
+   setMessage(d.unchanged?"Your profile is already up to date.":"Your profile details have been saved.");notify(d.unchanged?"Your profile is already up to date.":"Your profile details have been saved.","success","Profile updated");
   }catch(e){setError(e instanceof Error?e.message:"Profile details could not be saved.");}
   finally{setSaving(false);}
  }
@@ -141,9 +143,9 @@ export default function PhotographerPortal(){
   setBusy(true);try{const form=new FormData();form.set("photoId",editing.id);form.set("title",editing.title.trim());form.set("caption",editing.caption.trim());form.set("altText",editing.altText.trim());form.set("category",editing.category.trim());const r=await fetch("/api/photographer/gallery",{method:"PUT",body:form}),d=await r.json();if(!r.ok)throw new Error(d.error||"Portfolio edit could not be saved.");setGallery(v=>v.map(p=>p.id===d.photo.id?d.photo:p));setEditing(null);setEditFile(null);setEditMessage("Portfolio details updated.");}catch(e){setEditMessage(e instanceof Error?e.message:"Portfolio edit could not be saved.");}finally{setBusy(false);}
  }
  async function removePhoto(id:string){
-  if(!window.confirm("Remove this photograph from your public portfolio? The stored original will be retained."))return;
+  if(!await confirm({title:"Remove this portfolio photograph?",description:"The photograph will be hidden from your public portfolio. The stored original in Google Drive will be retained.",confirmLabel:"Remove photograph",danger:true}))return;
   setBusy(true);setGalleryMessage("");
-  try{const r=await fetch("/api/photographer/gallery",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({photoId:id})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Photograph could not be removed.");setGallery(v=>v.filter(p=>p.id!==id));setGalleryMessage("Photograph removed from your public portfolio.");}
+  try{const r=await fetch("/api/photographer/gallery",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({photoId:id})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Photograph could not be removed.");setGallery(v=>v.filter(p=>p.id!==id));setGalleryMessage("Photograph removed from your public portfolio.");notify("The photograph has been removed from your public portfolio. Its stored original was retained.","success","Photograph removed");}
   catch(e){setGalleryMessage(e instanceof Error?e.message:"Photograph could not be removed.");}finally{setBusy(false);}
  }
  async function movePhoto(index:number,step:-1|1){
@@ -155,7 +157,7 @@ export default function PhotographerPortal(){
     const r=await fetch("/api/photographer/gallery",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({photoId:p.id,sortOrder:p.sortOrder})}),d=await r.json();
     if(!r.ok)throw new Error(d.error||"Gallery order could not be saved.");
    }
-   setGallery(reordered);setGalleryMessage("Portfolio order updated.");
+   setGallery(reordered);setGalleryMessage("Portfolio order updated.");notify("Your portfolio order has been updated.","success","Gallery reordered");
   }catch(e){setGalleryMessage(e instanceof Error?e.message:"Gallery order could not be saved.");try{await loadGallery();}catch{}}
   finally{setBusy(false);}
  }
@@ -170,7 +172,7 @@ export default function PhotographerPortal(){
    <p style={intro}>Manage your pictures and portfolio independently. Preview every image before saving it to your public profile.</p>
    {loading?<p>Loading your photographer workspace…</p>:!profile?<section style={panel}><p role="alert">{error}</p><Link href="/photographer/login">Return to sign in</Link></section>:<>
     <div style={{display:"flex",gap:10,margin:"22px 0",alignItems:"center",flexWrap:"wrap"}}><span style={pill}>{profile.status}</span><span style={pill}>{profile.publishState}</span><span style={note}>{profile.email}</span></div>
-    {(error||message)&&<p role={error?"alert":"status"} style={{...notice,background:error?"#fff0ed":"#eef4eb",color:error?"#8d281d":"#31502c"}}>{error||message}</p>}
+    
     <section style={panel}>
      <p style={kicker}>01 — PROFILE DETAILS</p><h2 style={sectionTitle}>Your public information</h2>
      <form onSubmit={saveDetails}>
@@ -203,12 +205,12 @@ export default function PhotographerPortal(){
      </div>
      <label style={{...label,marginTop:14}}>Choose a portfolio photograph<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{selectGalleryFile(e.target.files?.[0]);e.currentTarget.value="";}}/></label>
      {fileUrl&&<div style={{maxWidth:520,marginTop:14}}><img src={fileUrl} alt="Selected portfolio image" style={{width:"100%",aspectRatio:"4 / 3",objectFit:"contain",background:"#eee9df"}}/><div style={{display:"flex",gap:10,marginTop:10}}><button type="button" style={primary} onClick={()=>file&&choose("gallery",file)}>Preview crop and continue</button><button type="button" style={secondary} onClick={()=>{URL.revokeObjectURL(fileUrl);setFileUrl("");setFile(null);}}>Cancel</button></div></div>}
-     {galleryMessage&&<p role="status" style={note}>{galleryMessage}</p>}
+     
      <h3 style={{...subTitle,marginTop:28}}>Your portfolio submissions ({gallery.length})</h3>
      {gallery.length===0?<div style={emptyGallery}>Your portfolio is ready for its first photograph. Choose an image above to get started.</div>:<div style={galleryGrid}>{gallery.map((p,i)=><article key={p.id} style={galleryCard}>
       <img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Portfolio photograph"} onError={e=>handleImagePreviewError(e,p.imageUrl)} style={{width:"100%",aspectRatio:"4 / 3",objectFit:"cover"}}/>
       <div style={{padding:12}}><strong>{p.title||"Untitled photograph"}</strong><p style={note}>Status: {p.publishState==="PUBLISHED"?"Published":p.publishState==="PENDING_REVIEW"?"Awaiting admin approval":p.publishState==="CHANGES_REQUESTED"?"Changes requested":p.publishState}</p>{p.category&&<p style={note}>{p.category}</p>}{p.caption&&<p style={note}>{p.caption}</p>}
-       {editing?.id===p.id&&<form onSubmit={savePhotoEdit} style={{display:"grid",gap:8,marginTop:10}}><div><p style={{...note,margin:"0 0 6px"}}>CURRENT UPLOADED PHOTO</p><img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Current portfolio photograph"} onError={e=>handleImagePreviewError(e,p.imageUrl)} style={{display:"block",width:"100%",maxHeight:260,aspectRatio:"4 / 3",objectFit:"contain",background:"#eee9df",border:"1px solid #dedbd3"}}/><p style={note}>To change the actual photograph, choose a replacement below. You will review its crop before saving.</p></div><label style={label}>Title<input style={input} value={editing.title} maxLength={120} onChange={e=>setEditing(v=>v?{...v,title:e.target.value}:v)}/></label><label style={label}>Caption<textarea style={{...input,minHeight:65}} value={editing.caption} maxLength={500} onChange={e=>setEditing(v=>v?{...v,caption:e.target.value}:v)}/></label><label style={label}>Category<input style={input} value={editing.category} maxLength={80} onChange={e=>setEditing(v=>v?{...v,category:e.target.value}:v)}/></label><label style={label}>Replace image (optional)<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&(f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type))){setEditMessage("Choose a JPG, PNG or WebP image up to 8 MB.");}else setEditFile(f||null);e.currentTarget.value="";}}/></label><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><button type="submit" style={primary} disabled={busy}>Save changes{editFile?" and crop image":""}</button><button type="button" style={secondary} onClick={()=>{setEditing(null);setEditFile(null);}}>Cancel</button></div>{editMessage&&<p role="status" style={note}>{editMessage}</p>}</form>}<div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy} onClick={()=>{setEditing({id:p.id,title:p.title,caption:p.caption,category:p.category,altText:p.altText});setEditFile(null);setEditMessage("");}}>Edit</button><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
+       {editing?.id===p.id&&<form onSubmit={savePhotoEdit} style={{display:"grid",gap:8,marginTop:10}}><div><p style={{...note,margin:"0 0 6px"}}>CURRENT UPLOADED PHOTO</p><img src={imagePreviewUrl(p.imageUrl)} alt={p.altText||p.title||"Current portfolio photograph"} onError={e=>handleImagePreviewError(e,p.imageUrl)} style={{display:"block",width:"100%",maxHeight:260,aspectRatio:"4 / 3",objectFit:"contain",background:"#eee9df",border:"1px solid #dedbd3"}}/><p style={note}>To change the actual photograph, choose a replacement below. You will review its crop before saving.</p></div><label style={label}>Title<input style={input} value={editing.title} maxLength={120} onChange={e=>setEditing(v=>v?{...v,title:e.target.value}:v)}/></label><label style={label}>Caption<textarea style={{...input,minHeight:65}} value={editing.caption} maxLength={500} onChange={e=>setEditing(v=>v?{...v,caption:e.target.value}:v)}/></label><label style={label}>Category<input style={input} value={editing.category} maxLength={80} onChange={e=>setEditing(v=>v?{...v,category:e.target.value}:v)}/></label><label style={label}>Replace image (optional)<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(f&&(f.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(f.type))){setEditMessage("Choose a JPG, PNG or WebP image up to 8 MB.");}else setEditFile(f||null);e.currentTarget.value="";}}/></label><div style={{display:"flex",gap:7,flexWrap:"wrap"}}><button type="submit" style={primary} disabled={busy}>Save changes{editFile?" and crop image":""}</button><button type="button" style={secondary} onClick={()=>{setEditing(null);setEditFile(null);}}>Cancel</button></div></form>}<div style={{display:"flex",gap:7,marginTop:10}}><button type="button" style={small} disabled={busy} onClick={()=>{setEditing({id:p.id,title:p.title,caption:p.caption,category:p.category,altText:p.altText});setEditFile(null);setEditMessage("");}}>Edit</button><button type="button" style={small} disabled={busy||i===0} onClick={()=>void movePhoto(i,-1)} aria-label="Move up">↑</button><button type="button" style={small} disabled={busy||i===gallery.length-1} onClick={()=>void movePhoto(i,1)} aria-label="Move down">↓</button><button type="button" style={remove} disabled={busy} onClick={()=>void removePhoto(p.id)}>Remove</button></div>
       </div>
      </article>)}</div>}
     </section>
