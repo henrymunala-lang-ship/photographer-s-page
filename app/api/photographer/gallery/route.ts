@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     const { headers, rows } = await galleryTable();
     const gallery = rows.map((row,index)=>({row,rowNumber:index+2}))
       .filter(item=>value(item.row,headers,"photographer_id")===auth.session.record.id)
-      .filter(item=>value(item.row,headers,"publish_state").toUpperCase()==="PUBLISHED")
+      .filter(item=>["PUBLISHED","PENDING_REVIEW","CHANGES_REQUESTED"].includes(value(item.row,headers,"publish_state").toUpperCase()))
       .map(item=>({
         id:value(item.row,headers,"photo_id"),
         title:value(item.row,headers,"title"),
@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
         imageUrl:safeImageUrl(value(item.row,headers,"image_preview_url")),
         altText:value(item.row,headers,"alt_text"),
         category:value(item.row,headers,"category"),
-        sortOrder:Number(value(item.row,headers,"sort_order"))||0
+        sortOrder:Number(value(item.row,headers,"sort_order"))||0,
+        publishState:value(item.row,headers,"publish_state").toUpperCase()
       })).filter(item=>item.id&&item.imageUrl).sort((a,b)=>a.sortOrder-b.sortOrder);
     return noStore({gallery});
   } catch {
@@ -130,11 +131,11 @@ export async function POST(request: NextRequest) {
     const fields={
       photo_id:photoId,photographer_id:photographerId,album_id:"",title,caption,
       image_preview_url:uploaded.url,alt_text:altText||title||"Portfolio photograph",
-      category,sort_order:String(sortOrder),featured:"FALSE",publish_state:"PUBLISHED"
+      category,sort_order:String(sortOrder),featured:"FALSE",publish_state:"PENDING_REVIEW"
     };
     await batchUpdateValues(rowWrites(headers,rowNumber,fields));
     await audit(auth.session,"photographer.gallery_photo.added",photoId,{storage:"google_drive",fileId:uploaded.fileId,category});
-    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(uploaded.url),altText:fields.alt_text,category,sortOrder}});
+    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(uploaded.url),altText:fields.alt_text,category,sortOrder,publishState:"PENDING_REVIEW"}});
   } catch {
     return noStore({error:"Your portfolio image could not be saved. Your existing gallery has not been changed."},503);
   }
@@ -154,14 +155,24 @@ export async function PUT(request: NextRequest) {
     if(!/^[A-Za-z0-9_-]{1,128}$/.test(photoId)||title.length>120||caption.length>500||altText.length>240||category.length>80)return noStore({error:"Please check the photo and shorten its details if needed."},400);
     if(image!==null&&(!(image instanceof File)||image.size<1||image.size>8*1024*1024||!["image/jpeg","image/png","image/webp"].includes(image.type)))return noStore({error:"Choose a JPG, PNG or WebP image up to 8 MB."},400);
     const {headers,rows}=await galleryTable();
-    const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>value(x.row,headers,"photo_id")===photoId&&value(x.row,headers,"photographer_id")===auth.session.record.id&&value(x.row,headers,"publish_state").toUpperCase()==="PUBLISHED");
-    if(matches.length!==1)return noStore({error:"That published portfolio photograph could not be found."},404);
+    const matches=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>value(x.row,headers,"photo_id")===photoId&&value(x.row,headers,"photographer_id")===auth.session.record.id&&["PUBLISHED","PENDING_REVIEW","CHANGES_REQUESTED"].includes(value(x.row,headers,"publish_state").toUpperCase()));
+    if(matches.length!==1)return noStore({error:"That portfolio photograph could not be found."},404);
     const match=matches[0];
-    let imageUrl=value(match.row,headers,"image_preview_url"),fileId="";
-    if(image instanceof File){const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");imageUrl=uploaded.url;fileId=uploaded.fileId;}
-    await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category,image_preview_url:imageUrl}));
-    await audit(auth.session,"photographer.gallery_photo.edited",photoId,{imageReplaced:!!fileId,fileId,category});
-    return noStore({ok:true,photo:{id:photoId,title,caption,imageUrl:safeImageUrl(imageUrl),altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0}});
+    let imageUrl=value(match.row,headers,"image_preview_url"),fileId="",resultPhotoId=photoId,publishState=value(match.row,headers,"publish_state").toUpperCase();
+    if(image instanceof File){
+      const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");
+      fileId=uploaded.fileId; imageUrl=uploaded.url;
+      const empty=rows.findIndex(row=>!row.some(cell=>String(cell??"").trim()));
+      const rowNumber=empty>=0?empty+2:rows.length+2;
+      if(rowNumber>1001)return noStore({error:"Your portfolio has reached its current storage limit. Contact Lens & Light for assistance."},409);
+      resultPhotoId="photo_"+randomBytes(12).toString("hex"); publishState="PENDING_REVIEW";
+      const fields={photo_id:resultPhotoId,photographer_id:auth.session.record.id,album_id:"replacement:"+photoId,title,caption,image_preview_url:imageUrl,alt_text:altText||title||"Portfolio photograph",category,sort_order:value(match.row,headers,"sort_order")||"1",featured:"FALSE",publish_state:publishState};
+      await batchUpdateValues(rowWrites(headers,rowNumber,fields));
+    } else {
+      await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category}));
+    }
+    await audit(auth.session,"photographer.gallery_photo.edited",resultPhotoId,{imageReplaced:!!fileId,fileId,category,previousPhotoId:image instanceof File?photoId:null,publishState});
+    return noStore({ok:true,photo:{id:resultPhotoId,title,caption,imageUrl:safeImageUrl(imageUrl),altText:altText||title||"Portfolio photograph",category,sortOrder:Number(value(match.row,headers,"sort_order"))||0,publishState}});
   }catch{return noStore({error:"Your portfolio edit could not be saved. The existing photograph remains unchanged."},503);}
 }
 
