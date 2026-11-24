@@ -195,3 +195,72 @@
   .ll-dialog-role .ll-dialog-actions{display:grid;grid-template-columns:.8fr 1.2fr}
   .ll-dialog-role .ll-dialog-actions button{width:100%;min-width:0}
 }
+
+
+/* Premium shared confirmation treatment for every important action */
+.ll-dialog-featured{
+  position:relative;isolation:isolate;overflow:hidden;
+  width:min(100%,540px);padding:32px clamp(23px,5vw,36px) 28px;
+  background:linear-gradient(155deg,#fffefa 0%,#f7f2e8 100%)!important;
+  border:1px solid #d8c5a5!important;border-top:5px solid #b18a50!important;
+  border-radius:21px!important;
+  box-shadow:0 30px 95px rgba(34,29,20,.3),0 0 0 5px rgba(199,165,111,.13)!important;
+}
+.ll-dialog-featured:after{
+  content:"";position:absolute;z-index:-1;width:230px;height:230px;
+  right:-105px;top:-125px;border-radius:50%;
+  background:radial-gradient(circle,rgba(198,164,108,.2),rgba(198,164,108,0) 70%);
+  pointer-events:none;
+}
+.ll-dialog-featured .ll-dialog-symbol{
+  width:58px;height:58px;margin-bottom:15px;border-radius:17px;
+  background:#eee3d0;color:#795a31;border:1px solid #d8c19a;
+  box-shadow:0 5px 16px rgba(130,99,51,.1);
+}
+.ll-dialog-featured .ll-dialog-symbol.is-danger{
+  background:#f7e8e2;color:#9b493b;border-color:#e5c3b8;
+}
+.ll-dialog-featured .ll-dialog-eyebrow{
+  display:inline-flex;padding:7px 11px;margin:0 0 13px;
+  border:1px solid #e4d2b2;border-radius:999px;background:#f5eddf;
+  color:#80613a;font-size:9px;font-weight:800;letter-spacing:.16em;
+}
+.ll-dialog-featured h2{
+  max-width:455px;margin-bottom:17px;font-size:clamp(28px,5vw,35px);
+  line-height:1.13;color:#28251f;letter-spacing:-.03em;
+}
+.ll-confirm-summary{
+  display:flex;align-items:flex-start;gap:12px;padding:15px 16px;
+  border:1px solid #e5ddcf;border-radius:13px;background:#fffefa;
+  box-shadow:0 3px 12px rgba(68,54,34,.04);
+}
+.ll-confirm-summary-icon{
+  width:34px;height:34px;flex:none;display:grid;place-items:center;
+  border-radius:10px;background:#f0e8da;color:#80613a;
+}
+.ll-dialog-featured .ll-confirm-summary p{
+  margin:0;color:#625c51;font:400 12px/1.75 "DM Sans",sans-serif;
+}
+.ll-dialog-featured .ll-dialog-actions{
+  justify-content:space-between;align-items:center;margin-top:23px;
+  padding-top:18px;border-top:1px solid #e9e0d1;
+}
+.ll-dialog-featured .ll-dialog-cancel{
+  min-width:105px;background:#fffefa;border:1px solid #d8d0c3;
+  color:#5e584e;border-radius:10px;
+}
+.ll-dialog-featured .ll-dialog-confirm{
+  min-width:155px;min-height:49px;border-radius:10px;
+  background:#765b37;border-color:#765b37;
+  box-shadow:0 5px 14px rgba(118,91,55,.18);
+}
+.ll-dialog-featured .ll-dialog-confirm:hover{background:#5f482c;border-color:#5f482c}
+.ll-dialog-featured .ll-dialog-confirm.is-danger{
+  background:#9c4035;border-color:#9c4035;
+}
+.ll-dialog-featured .ll-dialog-confirm.is-danger:hover{background:#80352d;border-color:#80352d}
+@media(max-width:560px){
+  .ll-dialog-featured{padding:25px 20px 22px;border-radius:17px!important}
+  .ll-dialog-featured .ll-dialog-actions{display:grid;grid-template-columns:1fr 1fr}
+  .ll-dialog-featured .ll-dialog-actions button{width:100%;min-width:0}
+}
