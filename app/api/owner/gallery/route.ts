@@ -47,15 +47,17 @@ export async function GET(request:NextRequest) {
     const nameIndex=ph.indexOf("public_name"),idIndex=ph.indexOf("photographer_id");
     const names=new Map<string,string>();
     for(const row of photographers.slice(1)){const id=String(row[idIndex]??"").trim();if(id)names.set(id,String(row[nameIndex]??"").trim());}
-    // Legacy replacement rows used album_id="replacement:<oldPhotoId>". Hide the
-    // superseded original from moderation so only the current replacement is shown.
-    const supersededPhotoIds=new Set(rows
-      .map(row=>cell(row,headers,"album_id"))
-      .filter(albumId=>albumId.startsWith("replacement:"))
-      .map(albumId=>albumId.slice("replacement:".length)));
+    // Legacy replacement rows used album_id="replacement:<oldPhotoId>".
+    // Only suppress an old original after its legacy replacement is actually
+    // published AND the original itself is still unpublished. If the original
+    // record has since been reused for an in-place replacement, its
+    // PENDING_REVIEW state must remain visible to admins.
+    const publishedLegacyReplacementTargets=new Set(rows
+      .filter(row=>cell(row,headers,"album_id").startsWith("replacement:")&&cell(row,headers,"publish_state").toUpperCase()==="PUBLISHED")
+      .map(row=>cell(row,headers,"album_id").slice("replacement:".length)));
     const photos=rows.map((row,index)=>({row,rowNumber:index+2}))
       .filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url"))
-      .filter(x=>!supersededPhotoIds.has(cell(x.row,headers,"photo_id"))).map(x=>({
+      .filter(x=>!(publishedLegacyReplacementTargets.has(cell(x.row,headers,"photo_id"))&&cell(x.row,headers,"publish_state").toUpperCase()==="UNPUBLISHED")).map(x=>({
       id:cell(x.row,headers,"photo_id"),photographerId:cell(x.row,headers,"photographer_id"),
       photographerName:names.get(cell(x.row,headers,"photographer_id"))||"Photographer",
       title:cell(x.row,headers,"title"),caption:cell(x.row,headers,"caption"),imageUrl:safeImageUrl(cell(x.row,headers,"image_preview_url")),
