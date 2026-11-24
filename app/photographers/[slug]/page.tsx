@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Camera, CheckCircle2, MapPin, Menu } from "lucide-react";
+import { PageSkeleton } from "@/components/page-skeleton";
 
 type Profile = {
   id: string;
@@ -70,7 +71,7 @@ export default function PublicPhotographerProfile() {
   }, [slug]);
 
   if (loading) {
-    return <main className="directory-page"><section className="directory-empty" role="status"><Camera size={28}/><h1>Loading photographer profile…</h1><p>Checking the latest approved and published profile.</p></section></main>;
+    return <PageSkeleton label="Preparing this photographer’s story" variant="profile"/>;
   }
 
   if (unavailable) {
