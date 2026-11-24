@@ -127,7 +127,8 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
       .filter((row) => isPublished(value(row, galleryTable.headers, "publish_state")))
       .filter((row) => {
         const albumId = value(row, galleryTable.headers, "album_id");
-        return !albumId || publishedAlbumIds.has(albumId);
+        // Legacy replacement rows are standalone gallery entries, not album members.
+        return !albumId || albumId.startsWith("replacement:") || publishedAlbumIds.has(albumId);
       })
       .map((row) => ({
         id: value(row, galleryTable.headers, "photo_id"),
