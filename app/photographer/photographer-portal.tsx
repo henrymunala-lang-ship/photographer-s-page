@@ -8,7 +8,7 @@ function imagePreviewCandidates(input: string): string[] {
     const url = new URL(input.trim());
     if (url.protocol !== "https:") return [];
     if (url.hostname === "drive.google.com" || url.hostname === "drive.usercontent.google.com") {
-      const fileId = url.searchParams.get("id") || url.pathname.match(/^\\/file\\/d\\/([^/]+)/)?.[1];
+      const fileId = url.searchParams.get("id") || url.pathname.match(/^\/file\/d\/([^/]+)/)?.[1];
       if (fileId) {
         const id = encodeURIComponent(fileId);
         return [
