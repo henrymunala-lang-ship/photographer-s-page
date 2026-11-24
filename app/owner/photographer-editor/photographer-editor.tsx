@@ -11,16 +11,34 @@ type Draft = {
   publicName: string; bio: string; location: string; categories: string;
   profileImageUrl: string; heroImageUrl: string;
 };
-function imagePreviewUrl(input: string): string {
+function imagePreviewCandidates(input: string): string[] {
   try {
-    const url = new URL(input);
-    if (url.protocol !== "https:") return "";
-    if (url.hostname === "drive.google.com" && url.pathname === "/uc") {
-      const fileId = url.searchParams.get("id");
-      return fileId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200` : "";
+    const url = new URL(input.trim());
+    if (url.protocol !== "https:") return [];
+    if (url.hostname === "drive.google.com" || url.hostname === "drive.usercontent.google.com") {
+      const fileId = url.searchParams.get("id") || url.pathname.match(/^\\/file\\/d\\/([^/]+)/)?.[1];
+      if (fileId) {
+        const id = encodeURIComponent(fileId);
+        return [
+          `https://drive.google.com/thumbnail?id=${id}&sz=w1200`,
+          `https://lh3.googleusercontent.com/d/${id}=w1200`,
+          `https://drive.google.com/uc?export=view&id=${id}`,
+          url.toString()
+        ].filter((value, index, values) => values.indexOf(value) === index);
+      }
     }
-    return url.toString();
-  } catch { return ""; }
+    return [url.toString()];
+  } catch { return []; }
+}
+function imagePreviewUrl(input: string): string { return imagePreviewCandidates(input)[0] || ""; }
+function handleImagePreviewError(event: React.SyntheticEvent<HTMLImageElement>, input: string) {
+  const image = event.currentTarget;
+  const candidates = imagePreviewCandidates(input);
+  const current = image.src;
+  const currentIndex = candidates.findIndex(value => value === current);
+  const next = candidates[currentIndex + 1];
+  if (next && next !== current) image.src = next;
+  else image.style.display = "none";
 }
 
 const emptyDraft: Draft = { publicName: "", bio: "", location: "", categories: "", profileImageUrl: "", heroImageUrl: "" };
@@ -141,7 +159,7 @@ export default function PhotographerEditor() {
               const key = kind === "profile" ? "profileImageUrl" : "heroImageUrl";
               return <section key={kind} style={{ border: "1px solid #dedbd3", padding: 14 }}>
                 <label>{kind === "profile" ? "Profile photo" : "Cover / hero photo"}</label>
-                {draft[key] && <img src={imagePreviewUrl(draft[key])} alt={kind === "profile" ? "Profile photo preview" : "Cover photo preview"} onError={e => { e.currentTarget.style.display = "none"; }} style={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "center", margin: "8px 0", border: "1px solid #dedbd3", borderRadius: 6, background: "#f1eee8" }} />}
+                {draft[key] && <img src={imagePreviewUrl(draft[key])} alt={kind === "profile" ? "Profile photo preview" : "Cover photo preview"} onError={e => handleImagePreviewError(e, draft[key])} style={{ width: "100%", height: 190, objectFit: "cover", objectPosition: "center", margin: "8px 0", border: "1px solid #dedbd3", borderRadius: 6, background: "#f1eee8" }} />}
                 <label>Paste an HTTPS image URL</label>
                 <input type="url" value={draft[key]} onChange={e => field(key, e.target.value)} placeholder="https://…" />
                 <label style={{ marginTop: 12 }}>Or upload from this device</label>
