@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v5-photographer-password-recovery";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v6-photographer-session-version";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
