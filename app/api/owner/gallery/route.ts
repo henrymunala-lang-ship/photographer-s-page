@@ -47,7 +47,15 @@ export async function GET(request:NextRequest) {
     const nameIndex=ph.indexOf("public_name"),idIndex=ph.indexOf("photographer_id");
     const names=new Map<string,string>();
     for(const row of photographers.slice(1)){const id=String(row[idIndex]??"").trim();if(id)names.set(id,String(row[nameIndex]??"").trim());}
-    const photos=rows.map((row,index)=>({row,rowNumber:index+2})).filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url")).map(x=>({
+    // Legacy replacement rows used album_id="replacement:<oldPhotoId>". Hide the
+    // superseded original from moderation so only the current replacement is shown.
+    const supersededPhotoIds=new Set(rows
+      .map(row=>cell(row,headers,"album_id"))
+      .filter(albumId=>albumId.startsWith("replacement:"))
+      .map(albumId=>albumId.slice("replacement:".length)));
+    const photos=rows.map((row,index)=>({row,rowNumber:index+2}))
+      .filter(x=>cell(x.row,headers,"photo_id")&&cell(x.row,headers,"image_preview_url"))
+      .filter(x=>!supersededPhotoIds.has(cell(x.row,headers,"photo_id"))).map(x=>({
       id:cell(x.row,headers,"photo_id"),photographerId:cell(x.row,headers,"photographer_id"),
       photographerName:names.get(cell(x.row,headers,"photographer_id"))||"Photographer",
       title:cell(x.row,headers,"title"),caption:cell(x.row,headers,"caption"),imageUrl:safeImageUrl(cell(x.row,headers,"image_preview_url")),
@@ -70,15 +78,11 @@ export async function PATCH(request:NextRequest) {
     const match=matches[0],previous=cell(match.row,headers,"publish_state").toUpperCase();
     if(previous===publishState)return json({ok:true,publishState});
     const column=headers.indexOf("publish_state");
-    const writes=[{range:`'04_GALLERY'!${col(column)}${match.rowNumber}`,values:[[publishState]]}];
-    const albumId=cell(match.row,headers,"album_id");
-    if(publishState==="PUBLISHED"&&albumId.startsWith("replacement:")){
-      const replacedId=albumId.slice("replacement:".length);
-      const prior=rows.map((row,index)=>({row,rowNumber:index+2})).find(x=>cell(x.row,headers,"photo_id")===replacedId&&cell(x.row,headers,"photographer_id")===cell(match.row,headers,"photographer_id")&&cell(x.row,headers,"publish_state").toUpperCase()==="PUBLISHED");
-      if(prior)writes.push({range:`'04_GALLERY'!${col(column)}${prior.rowNumber}`,values:[["UNPUBLISHED"]]});
-    }
-    await batchUpdateValues(writes);
-    await appendAudit(auth.actor,"gallery.photo.moderated","gallery_photo",photoId,{previousPublishState:previous||"UNPUBLISHED",publishState,photographerId:cell(match.row,headers,"photographer_id"),replacementOf:albumId.startsWith("replacement:")?albumId.slice("replacement:".length):null});
+    await batchUpdateValues([{range:`'04_GALLERY'!${col(column)}${match.rowNumber}`,values:[[publishState]]}]);
+    await appendAudit(auth.actor,"gallery.photo.moderated","gallery_photo",photoId,{
+      previousPublishState:previous||"UNPUBLISHED",publishState,
+      photographerId:cell(match.row,headers,"photographer_id")
+    });
     return json({ok:true,publishState});
   } catch(error) { return json({error:error instanceof Error?error.message:"Gallery moderation could not be saved."},503); }
 }
