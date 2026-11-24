@@ -162,12 +162,17 @@ export async function PUT(request: NextRequest) {
     if(image instanceof File){
       const uploaded=await uploadPhotographerImage(image,auth.session.record.id,"gallery");
       fileId=uploaded.fileId; imageUrl=uploaded.url;
-      const empty=rows.findIndex(row=>!row.some(cell=>String(cell??"").trim()));
-      const rowNumber=empty>=0?empty+2:rows.length+2;
-      if(rowNumber>1001)return noStore({error:"Your portfolio has reached its current storage limit. Contact Lens & Light for assistance."},409);
-      resultPhotoId="photo_"+randomBytes(12).toString("hex"); publishState="PENDING_REVIEW";
-      const fields={photo_id:resultPhotoId,photographer_id:auth.session.record.id,album_id:"replacement:"+photoId,title,caption,image_preview_url:imageUrl,alt_text:altText||title||"Portfolio photograph",category,sort_order:value(match.row,headers,"sort_order")||"1",featured:"FALSE",publish_state:publishState};
-      await batchUpdateValues(rowWrites(headers,rowNumber,fields));
+      publishState=publishState==="PUBLISHED"?"PENDING_REVIEW":publishState;
+      const fields={title,caption,image_preview_url:imageUrl,alt_text:altText||title||"Portfolio photograph",category,publish_state:publishState};
+      if(value(match.row,headers,"publish_state").toUpperCase()==="PUBLISHED"){
+        const empty=rows.findIndex(row=>!row.some(cell=>String(cell??"").trim()));
+        const rowNumber=empty>=0?empty+2:rows.length+2;
+        if(rowNumber>1001)return noStore({error:"Your portfolio has reached its current storage limit. Contact Lens & Light for assistance."},409);
+        resultPhotoId="photo_"+randomBytes(12).toString("hex");
+        await batchUpdateValues(rowWrites(headers,rowNumber,{...fields,photo_id:resultPhotoId,photographer_id:auth.session.record.id,album_id:"replacement:"+photoId,sort_order:value(match.row,headers,"sort_order")||"1",featured:"FALSE"}));
+      } else {
+        await batchUpdateValues(rowWrites(headers,match.rowNumber,fields));
+      }
     } else {
       await batchUpdateValues(rowWrites(headers,match.rowNumber,{title,caption,alt_text:altText||title||"Portfolio photograph",category}));
     }
