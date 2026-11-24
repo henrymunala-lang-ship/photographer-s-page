@@ -88,6 +88,8 @@ export default function ApplicationUpdatesPage() {
     }
   }
 
+  if (loading) return <PageSkeleton label="Opening your private application updates" variant="workspace"/>;
+
   return (
     <main style={{ minHeight: "100vh", background: "#f5f2ec", color: "#25231f", padding: "32px 18px 64px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
