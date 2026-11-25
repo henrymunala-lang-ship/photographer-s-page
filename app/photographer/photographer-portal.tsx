@@ -74,6 +74,7 @@ export default function PhotographerPortal(){
  const [stage,setStage]=useState<Stage|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[galleryMessage,setGalleryMessage]=useState("");
  const [file,setFile]=useState<File|null>(null),[fileUrl,setFileUrl]=useState(""),[title,setTitle]=useState(""),[caption,setCaption]=useState(""),[category,setCategory]=useState("");
  const [editing,setEditing]=useState<PhotoEdit|null>(null),[editFile,setEditFile]=useState<File|null>(null),[editMessage,setEditMessage]=useState("");
+ const [enquiries,setEnquiries]=useState<ClientEnquiry[]>([]),[enquiriesLoading,setEnquiriesLoading]=useState(false),[enquiriesError,setEnquiriesError]=useState(""),[enquiryBusy,setEnquiryBusy]=useState<string|null>(null);
 
  async function loadGallery(){
   const r=await fetch("/api/photographer/gallery",{cache:"no-store"}),d=await r.json();
