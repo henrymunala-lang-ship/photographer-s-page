@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { appendRows, readValues, updateValues } from "@/lib/integrations/google-sheets/client";
 import { hashPassword } from "@/lib/owner/admin-auth";
+import { getDatabase } from "@/lib/database/neon";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,6 +69,16 @@ export async function POST(request: NextRequest) {
     const admins = await readValues("'03_ADMINS'!A2:H501");
     if (admins.some(item => String(item[2] ?? "").toLowerCase() === email && item[5] === "active")) {
       return noStore({ error: "An active administrator already exists for this email." }, 409);
+    }
+
+    // Neon provides a unique atomic claim so concurrent requests cannot redeem one sheet invitation twice.
+    const sql = getDatabase();
+    const claimed = await sql`INSERT INTO application_rate_limits (rate_key,window_started_at,request_count)
+      VALUES (${"admin-invite-consumed:" + digest},now(),1)
+      ON CONFLICT (rate_key) DO NOTHING
+      RETURNING rate_key`;
+    if (!claimed.length) {
+      return noStore({ error: "This invitation has already been claimed. Sign in if setup completed, or ask the Super Admin for a new invitation." }, 409);
     }
 
     const adminId = "adm_" + randomUUID();
