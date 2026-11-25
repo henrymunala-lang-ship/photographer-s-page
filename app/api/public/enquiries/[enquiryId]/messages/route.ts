@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
+import { readValues } from "@/lib/integrations/google-sheets/client";
 import { getClientEnquirySession } from "@/lib/client-enquiries/access";
 import { sendClientEnquiryEmail } from "@/lib/client-enquiries/email";
 
@@ -63,17 +64,31 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
     const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
     if (await consumeMessageLimit(id, ip) > 30) return response({ error: "Too many messages have been sent. Please wait before replying again." }, 429);
     const sql = getDatabase();
-    const enquiryRows = await sql`SELECT customer_name, customer_email_hash, photographer_email, photographer_name
+    const enquiryRows = await sql`SELECT customer_name, customer_email_hash, photographer_id, photographer_email, photographer_name
       FROM client_enquiries WHERE enquiry_id = ${id} LIMIT 1`;
     if (!enquiryRows.length) return response({ error: "Enquiry not found." }, 404);
     const enquiry = enquiryRows[0];
+    let photographerEmail = String(enquiry.photographer_email || "");
+    if (!photographerEmail) {
+      const sheetRows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+      const headers = (sheetRows[0] ?? []).map(value => String(value ?? "").trim());
+      const idIndex = headers.indexOf("photographer_id");
+      const emailIndex = headers.indexOf("email");
+      if (idIndex >= 0 && emailIndex >= 0) {
+        const matches = sheetRows.slice(1).filter(row => String(row[idIndex] ?? "").trim() === String(enquiry.photographer_id));
+        if (matches.length === 1) {
+          photographerEmail = String(matches[0][emailIndex] ?? "").trim().toLowerCase();
+          if (photographerEmail) await sql`UPDATE client_enquiries SET photographer_email = ${photographerEmail} WHERE enquiry_id = ${id}`;
+        }
+      }
+    }
     const inserted = await sql`INSERT INTO client_enquiry_messages
       (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
       VALUES (${"msg_" + randomUUID()}, ${id}, 'customer', ${String(enquiry.customer_email_hash)}, ${String(enquiry.customer_name)}, ${body})
       RETURNING message_id, sender_type, sender_name, body, created_at`;
-    const notification = enquiry.photographer_email
+    const notification = photographerEmail
       ? await sendClientEnquiryEmail({
-          to: String(enquiry.photographer_email),
+          to: photographerEmail,
           subject: "New message from a Lens & Light client",
           greeting: String(enquiry.photographer_name),
           message: "A customer has replied in a private enquiry conversation. Sign in to your photographer workspace to respond.",
