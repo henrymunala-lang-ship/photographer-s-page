@@ -41,3 +41,25 @@
 .owner-detail-readonly{display:flex;align-items:center;gap:8px;border-top:1px solid var(--ol);padding-top:15px;margin:20px 0 0;font-size:9px;color:#78654d}
 .owner-detail-readonly svg{flex:none}
 @media(max-width:700px){.owner-detail-grid{grid-template-columns:1fr}.owner-detail-wide{grid-column:auto}.owner-application-open{align-items:flex-start}.owner-application-open .owner-status-pill{margin-left:46px}.owner-application-open .owner-readonly-label{margin-left:auto}}
+
+
+/* Matching premium brand-title treatment in the owner workspace */
+.owner-sidebar>.owner-brand{gap:13px;white-space:nowrap}
+.owner-sidebar>.owner-brand>span{
+  width:42px;height:42px;flex:none;border:1px solid #a58b69;border-radius:10px;
+  background:linear-gradient(145deg,#3b3933,#24231f);color:#d0b58d;
+  box-shadow:inset 0 1px 0 #ffffff18,0 5px 14px #00000026;
+}
+.owner-sidebar>.owner-brand>b{
+  min-height:43px;display:inline-flex;align-items:center;padding:7px 13px 7px 14px;
+  border:1px solid #74634b;border-left:3px solid #b18f61;border-radius:7px;
+  background:linear-gradient(110deg,#37352f,#302f29);color:#f6f4ef;
+  box-shadow:inset 0 1px 0 #ffffff12,0 4px 12px #00000020;
+  font-size:12px;font-weight:800;letter-spacing:.17em;
+}
+.owner-sidebar>.owner-brand>b i{color:#c3a783}
+@media(max-width:900px){
+  .owner-sidebar>.owner-brand{gap:9px}
+  .owner-sidebar>.owner-brand>span{width:38px;height:38px;border-radius:9px}
+  .owner-sidebar>.owner-brand>b{min-height:39px;padding:6px 9px 6px 10px;font-size:11px;letter-spacing:.12em}
+}
