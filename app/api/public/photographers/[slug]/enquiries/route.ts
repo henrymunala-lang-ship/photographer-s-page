@@ -174,6 +174,15 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
           message: "A new client enquiry has been received for " + photographer.name + ". Sign in to the Owner Workspace to review it."
         })
       : { state: "pending" as const, reason: "not_configured" as const };
+    // Persist provider acceptance without allowing a status-write failure to undo the saved enquiry.
+    try {
+      await sql`UPDATE client_enquiries SET owner_notification_state = ${notification.state}
+        WHERE enquiry_id = ${enquiryId}`;
+    } catch (statusError) {
+      console.warn("[client-enquiry] owner notification state could not be stored", {
+        errorName: statusError instanceof Error ? statusError.name : "UnknownError"
+      });
+    }
     return noStore({
       ok: true,
       enquiry: inserted[0],
