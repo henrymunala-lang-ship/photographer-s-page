@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v7-client-enquiries";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v8-client-messaging";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -178,6 +178,35 @@ const statements = [
     ON client_enquiries (customer_email_hash, created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS client_enquiries_status_idx
     ON client_enquiries (status, created_at DESC)`,
+  `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS photographer_email text NOT NULL DEFAULT ''`,
+  `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS customer_notification_state text NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS photographer_notification_state text NOT NULL DEFAULT 'pending'`,
+  `CREATE TABLE IF NOT EXISTS client_enquiry_messages (
+    message_id text PRIMARY KEY,
+    enquiry_id text NOT NULL REFERENCES client_enquiries(enquiry_id) ON DELETE CASCADE,
+    sender_type text NOT NULL CHECK (sender_type IN ('customer','photographer','admin','system')),
+    sender_ref text NOT NULL,
+    sender_name text NOT NULL,
+    body text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
+    customer_read_at timestamptz,
+    photographer_read_at timestamptz,
+    owner_read_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS client_enquiry_messages_thread_idx
+    ON client_enquiry_messages (enquiry_id, created_at, message_id)`,
+  `CREATE TABLE IF NOT EXISTS client_enquiry_access_tokens (
+    token_id text PRIMARY KEY,
+    enquiry_id text NOT NULL REFERENCES client_enquiries(enquiry_id) ON DELETE CASCADE,
+    token_hash char(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    session_expires_at timestamptz,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS client_enquiry_access_tokens_thread_idx
+    ON client_enquiry_access_tokens (enquiry_id, expires_at)`,
   `CREATE TABLE IF NOT EXISTS application_rate_limits (
     rate_key char(64) PRIMARY KEY,
     window_started_at timestamptz NOT NULL DEFAULT now(),
@@ -189,7 +218,7 @@ const statements = [
 export async function migrateApplicationDatabase() {
   const sql = getDatabase();
   const applied = await sql`SELECT version FROM lens_light_schema_migrations WHERE version = ${APPLICATION_SCHEMA_VERSION} LIMIT 1`;
-  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 14 };
+  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 16 };
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
   await sql`INSERT INTO lens_light_schema_migrations (version)
@@ -206,6 +235,8 @@ export async function migrateApplicationDatabase() {
         'application_outbox',
         'application_rate_limits',
         'client_enquiries',
+        'client_enquiry_messages',
+        'client_enquiry_access_tokens',
         'photographer_accounts',
         'photographer_applicant_accounts',
         'photographer_account_setup_tokens',
@@ -223,6 +254,8 @@ export async function migrateApplicationDatabase() {
     "application_outbox",
     "application_rate_limits",
     "client_enquiries",
+    "client_enquiry_messages",
+    "client_enquiry_access_tokens",
     "photographer_accounts",
     "photographer_applicant_accounts",
     "photographer_account_setup_tokens",
