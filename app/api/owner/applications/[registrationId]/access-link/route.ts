@@ -9,6 +9,12 @@ export const dynamic = "force-dynamic";
 type Context = { params: Promise<{ registrationId: string }> };
 
 export async function POST(request: NextRequest, context: Context) {
+  const origin = request.headers.get("origin");
+  let originMatches = false;
+  try { originMatches = !!origin && new URL(origin).host === request.headers.get("host"); } catch { originMatches = false; }
+  if (!originMatches) {
+    return NextResponse.json({ error: "A same-origin request is required." }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+  }
   if (process.env.VERCEL_ENV !== "preview") {
     return NextResponse.json({ error: "Recovery links can only be issued from the Preview workspace." }, { status: 404 });
   }
