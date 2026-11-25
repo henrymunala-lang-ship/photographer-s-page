@@ -45,6 +45,7 @@ export default function PublicPhotographerProfile() {
   const [enquiryBusy, setEnquiryBusy] = useState(false);
   const [enquiryError, setEnquiryError] = useState("");
   const [enquirySuccess, setEnquirySuccess] = useState("");
+  const [enquiryConversationPath, setEnquiryConversationPath] = useState("");
   const [enquiryForm, setEnquiryForm] = useState({ name: "", email: "", phone: "", eventType: "", eventDate: "", eventLocation: "", message: "", consent: false, website: "" });
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function PublicPhotographerProfile() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Your enquiry could not be sent.");
       setEnquirySuccess(result.message || "Thank you. Your enquiry has been received.");
+      setEnquiryConversationPath(typeof result.conversationPath === "string" ? result.conversationPath : "");
       setEnquiryForm({ name: "", email: "", phone: "", eventType: "", eventDate: "", eventLocation: "", message: "", consent: false, website: "" });
     } catch (error) {
       setEnquiryError(error instanceof Error ? error.message : "Your enquiry could not be sent.");
@@ -166,7 +168,7 @@ export default function PublicPhotographerProfile() {
     {enquiryOpen && <section className="profile-enquiry-section" id="photographer-enquiry">
       <div className="profile-section-head"><p className="kicker">PRIVATE PHOTOGRAPHER ENQUIRY</p><span>LET’S PLAN SOMETHING</span></div>
       <div className="profile-enquiry-heading"><h2>Tell us about<br/><em>your occasion.</em></h2><p>Share the essentials. The photographer can review your enquiry privately and follow up using the details you provide.</p></div>
-      {enquirySuccess ? <div className="profile-enquiry-success" role="status"><CheckCircle2 size={22}/><div><strong>Enquiry received</strong><p>{enquirySuccess}</p></div><button type="button" onClick={() => setEnquiryOpen(false)}>Close</button></div> : <form className="profile-enquiry-form" onSubmit={submitEnquiry}>
+      {enquirySuccess ? <div className="profile-enquiry-success" role="status"><CheckCircle2 size={22}/><div><strong>Enquiry received</strong><p>{enquirySuccess}</p>{enquiryConversationPath && <p style={{marginTop:12}}><Link className="button-dark" href={enquiryConversationPath}>Continue private conversation <ArrowRight size={15}/></Link></p>}</div><button type="button" onClick={() => setEnquiryOpen(false)}>Close</button></div> : <form className="profile-enquiry-form" onSubmit={submitEnquiry}>
         <label>Your name<input required minLength={2} maxLength={120} autoComplete="name" value={enquiryForm.name} onChange={e=>setEnquiryForm(v=>({...v,name:e.target.value}))}/></label>
         <label>Email address<input required type="email" maxLength={254} autoComplete="email" value={enquiryForm.email} onChange={e=>setEnquiryForm(v=>({...v,email:e.target.value}))}/></label>
         <label>Phone number<input required type="tel" minLength={7} maxLength={40} autoComplete="tel" value={enquiryForm.phone} onChange={e=>setEnquiryForm(v=>({...v,phone:e.target.value}))}/></label>
