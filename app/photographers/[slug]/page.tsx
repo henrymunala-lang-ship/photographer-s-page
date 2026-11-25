@@ -41,6 +41,11 @@ export default function PublicPhotographerProfile() {
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [activeImage, setActiveImage] = useState<GalleryItem | null>(null);
+  const [enquiryOpen, setEnquiryOpen] = useState(false);
+  const [enquiryBusy, setEnquiryBusy] = useState(false);
+  const [enquiryError, setEnquiryError] = useState("");
+  const [enquirySuccess, setEnquirySuccess] = useState("");
+  const [enquiryForm, setEnquiryForm] = useState({ name: "", email: "", phone: "", eventType: "", eventDate: "", eventLocation: "", message: "", consent: false, website: "" });
 
   useEffect(() => {
     if (!slug) return;
@@ -69,6 +74,29 @@ export default function PublicPhotographerProfile() {
       });
     return () => controller.abort();
   }, [slug]);
+
+  async function submitEnquiry(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (enquiryBusy) return;
+    setEnquiryBusy(true);
+    setEnquiryError("");
+    setEnquirySuccess("");
+    try {
+      const response = await fetch(`/api/public/photographers/${encodeURIComponent(slug)}/enquiries`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(enquiryForm)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Your enquiry could not be sent.");
+      setEnquirySuccess(result.message || "Thank you. Your enquiry has been received.");
+      setEnquiryForm({ name: "", email: "", phone: "", eventType: "", eventDate: "", eventLocation: "", message: "", consent: false, website: "" });
+    } catch (error) {
+      setEnquiryError(error instanceof Error ? error.message : "Your enquiry could not be sent.");
+    } finally {
+      setEnquiryBusy(false);
+    }
+  }
 
   if (loading) {
     return <PageSkeleton label="Preparing this photographer’s story" variant="profile"/>;
@@ -107,8 +135,8 @@ export default function PublicPhotographerProfile() {
         <h1>{photographer.name}</h1>
         <p className="profile-location"><MapPin size={15}/>{photographer.primaryLocation || "Location not specified"}</p>
         <p className="profile-lead">{photographer.bio || "This photographer has not added an introduction yet."}</p>
-        <div className="profile-actions"><Link className="button-dark" href="/contact">Contact Lens & Light <ArrowRight size={16}/></Link></div>
-        <p className="profile-interaction-note">Direct photographer enquiries are not enabled yet. Contact Lens & Light for general assistance.</p>
+        <div className="profile-actions"><button className="button-dark" type="button" onClick={() => { setEnquiryOpen(true); setEnquirySuccess(""); setEnquiryError(""); }}>Send an enquiry <ArrowRight size={16}/></button><Link className="button-outline" href="/contact">Contact Lens & Light</Link></div>
+        <p className="profile-interaction-note">Your enquiry is sent privately to this photographer and the Lens & Light support team. Your contact details are not displayed publicly.</p>
       </div>
     </section>
 
@@ -125,12 +153,30 @@ export default function PublicPhotographerProfile() {
       </div>
       <aside className="profile-contact-card">
         <p className="kicker">START A CONVERSATION</p><h2>Have a story<br/>in mind?</h2>
-        <p>We are preparing secure enquiry and messaging tools for Lens & Light. They are not available yet.</p>
-        <Link className="button-dark" href="/contact">Contact Lens & Light <ArrowRight size={15}/></Link>
-        <small>This link opens the general contact page; it does not send a message to the photographer.</small>
+        <p>Tell the photographer a little about what you have in mind. Your details will be shared privately for a response.</p>
+        <button className="button-dark" type="button" onClick={() => { setEnquiryOpen(true); setEnquirySuccess(""); setEnquiryError(""); }}>Start an enquiry <ArrowRight size={15}/></button>
+        <small>Enquiries are private and visible only to this photographer and authorised Lens & Light support administrators.</small>
       </aside>
     </section>
 
+    {enquiryOpen && <section className="profile-enquiry-section" id="photographer-enquiry">
+      <div className="profile-section-head"><p className="kicker">PRIVATE PHOTOGRAPHER ENQUIRY</p><span>LET’S PLAN SOMETHING</span></div>
+      <div className="profile-enquiry-heading"><h2>Tell us about<br/><em>your occasion.</em></h2><p>Share the essentials. The photographer can review your enquiry privately and follow up using the details you provide.</p></div>
+      {enquirySuccess ? <div className="profile-enquiry-success" role="status"><CheckCircle2 size={22}/><div><strong>Enquiry received</strong><p>{enquirySuccess}</p></div><button type="button" onClick={() => setEnquiryOpen(false)}>Close</button></div> : <form className="profile-enquiry-form" onSubmit={submitEnquiry}>
+        <label>Your name<input required minLength={2} maxLength={120} autoComplete="name" value={enquiryForm.name} onChange={e=>setEnquiryForm(v=>({...v,name:e.target.value}))}/></label>
+        <label>Email address<input required type="email" maxLength={254} autoComplete="email" value={enquiryForm.email} onChange={e=>setEnquiryForm(v=>({...v,email:e.target.value}))}/></label>
+        <label>Phone number<input required type="tel" minLength={7} maxLength={40} autoComplete="tel" value={enquiryForm.phone} onChange={e=>setEnquiryForm(v=>({...v,phone:e.target.value}))}/></label>
+        <label>What are you planning?<select required value={enquiryForm.eventType} onChange={e=>setEnquiryForm(v=>({...v,eventType:e.target.value}))}><option value="">Choose an occasion</option><option>Wedding</option><option>Engagement</option><option>Portrait session</option><option>Family session</option><option>Corporate / commercial</option><option>Event</option><option>Product photography</option><option>Other</option></select></label>
+        <label>Preferred date <span>(optional)</span><input type="date" value={enquiryForm.eventDate} onChange={e=>setEnquiryForm(v=>({...v,eventDate:e.target.value}))}/></label>
+        <label>Location<input required maxLength={160} placeholder="Town, venue or area" value={enquiryForm.eventLocation} onChange={e=>setEnquiryForm(v=>({...v,eventLocation:e.target.value}))}/></label>
+        <label className="profile-enquiry-wide">A little more about your plans<textarea required minLength={20} maxLength={4000} rows={5} placeholder="Tell the photographer what you have in mind, the style you like, and any useful details…" value={enquiryForm.message} onChange={e=>setEnquiryForm(v=>({...v,message:e.target.value}))}/></label>
+        <label className="profile-enquiry-consent"><input type="checkbox" required checked={enquiryForm.consent} onChange={e=>setEnquiryForm(v=>({...v,consent:e.target.checked}))}/> I agree that Lens & Light may share these details with this photographer so they can respond to my enquiry.</label>
+        <label className="profile-enquiry-honeypot" aria-hidden="true">Website<input tabIndex={-1} autoComplete="off" value={enquiryForm.website} onChange={e=>setEnquiryForm(v=>({...v,website:e.target.value}))}/></label>
+        {enquiryError && <p className="profile-enquiry-error" role="alert">{enquiryError}</p>}
+        <div className="profile-enquiry-actions"><button className="button-dark" type="submit" disabled={enquiryBusy}>{enquiryBusy?"Sending securely…":"Send private enquiry"} <ArrowRight size={16}/></button><button type="button" className="button-outline" disabled={enquiryBusy} onClick={()=>setEnquiryOpen(false)}>Cancel</button></div>
+        <p className="profile-enquiry-privacy">Your contact details are not shown on this public profile. They are stored securely for the purpose of responding to this enquiry.</p>
+      </form>}
+    </section>}
     <section className="profile-gallery">
       <div className="profile-section-head"><p className="kicker">SELECTED WORK</p><span>04 — PORTFOLIO</span></div>
       <h2>A few moments<br/><em>worth keeping.</em></h2>
