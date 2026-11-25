@@ -99,7 +99,7 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
   const validEventDate = !eventDate || (() => { const parsed = new Date(eventDate + "T00:00:00Z"); return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === eventDate; })();
   if (name.length < 2 || !validEmail(email) || phone.length < 7 ||
       !/^[+0-9().\s-]+$/.test(phone) || eventType.length < 2 ||
-      (eventDate && !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) ||
+      !validEventDate ||
       eventLocation.length < 2 || message.length < 20 || payload.consent !== true) {
     return noStore({ error: "Please complete the required fields and confirm that Lens & Light may use your details to respond." }, 400);
   }
