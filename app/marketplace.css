@@ -238,3 +238,28 @@
   .market-header .brand-wordmark{padding:6px 8px}
   .market-header .brand-wordmark strong{font-size:10px;letter-spacing:.1em}
 }
+
+
+/* Quiet, consistent navigation feedback: keep links unboxed */
+@media(min-width:651px){
+  .market-header .desktop-site-nav a{
+    position:relative;text-decoration:none;transition:color .2s ease;
+  }
+  .market-header .desktop-site-nav a:not(.header-cta)::after{
+    content:"";position:absolute;left:0;right:0;bottom:-8px;height:1px;
+    background:#a58b69;transform:scaleX(0);transform-origin:left;
+    transition:transform .2s ease;
+  }
+  .market-header .desktop-site-nav a:hover,
+  .market-header .desktop-site-nav a[aria-current="page"]{color:#927650}
+  .market-header .desktop-site-nav a:hover::after,
+  .market-header .desktop-site-nav a[aria-current="page"]::after{transform:scaleX(1)}
+  .market-header .desktop-site-nav a:focus-visible{
+    outline:2px solid #a58b69;outline-offset:5px;border-radius:2px;
+  }
+}
+.market-header .mobile-site-menu nav a{
+  transition:color .2s ease;
+}
+.market-header .mobile-site-menu nav a:hover,
+.market-header .mobile-site-menu nav a[aria-current="page"]{color:#927650}
