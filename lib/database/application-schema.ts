@@ -195,6 +195,12 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS client_enquiry_messages_thread_idx
     ON client_enquiry_messages (enquiry_id, created_at, message_id)`,
+  `INSERT INTO client_enquiry_messages
+    (message_id, enquiry_id, sender_type, sender_ref, sender_name, body, created_at)
+    SELECT 'msg_initial_' || md5(enquiry_id), enquiry_id, 'customer', customer_email_hash,
+      customer_name, message, created_at
+    FROM client_enquiries
+    ON CONFLICT (message_id) DO NOTHING`,
   `CREATE TABLE IF NOT EXISTS client_enquiry_access_tokens (
     token_id text PRIMARY KEY,
     enquiry_id text NOT NULL REFERENCES client_enquiries(enquiry_id) ON DELETE CASCADE,
