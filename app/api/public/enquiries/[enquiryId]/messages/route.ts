@@ -70,17 +70,19 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
     const enquiry = enquiryRows[0];
     let photographerEmail = String(enquiry.photographer_email || "");
     if (!photographerEmail) {
-      const sheetRows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
-      const headers = (sheetRows[0] ?? []).map(value => String(value ?? "").trim());
-      const idIndex = headers.indexOf("photographer_id");
-      const emailIndex = headers.indexOf("email");
-      if (idIndex >= 0 && emailIndex >= 0) {
-        const matches = sheetRows.slice(1).filter(row => String(row[idIndex] ?? "").trim() === String(enquiry.photographer_id));
-        if (matches.length === 1) {
-          photographerEmail = String(matches[0][emailIndex] ?? "").trim().toLowerCase();
-          if (photographerEmail) await sql`UPDATE client_enquiries SET photographer_email = ${photographerEmail} WHERE enquiry_id = ${id}`;
+      try {
+        const sheetRows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+        const headers = (sheetRows[0] ?? []).map(value => String(value ?? "").trim());
+        const idIndex = headers.indexOf("photographer_id");
+        const emailIndex = headers.indexOf("email");
+        if (idIndex >= 0 && emailIndex >= 0) {
+          const matches = sheetRows.slice(1).filter(row => String(row[idIndex] ?? "").trim() === String(enquiry.photographer_id));
+          if (matches.length === 1) {
+            photographerEmail = String(matches[0][emailIndex] ?? "").trim().toLowerCase();
+            if (photographerEmail) await sql`UPDATE client_enquiries SET photographer_email = ${photographerEmail} WHERE enquiry_id = ${id}`;
+          }
         }
-      }
+      } catch { /* message remains saved even if the optional email lookup is unavailable */ }
     }
     const inserted = await sql`INSERT INTO client_enquiry_messages
       (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
