@@ -3,7 +3,7 @@ import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from
 import type { NextRequest } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 
-export const CLIENT_ENQUIRY_COOKIE = "ll_client_enquiry_session";
+export function clientEnquiryCookieName(enquiryId: string) { return "ll_client_enquiry_" + enquiryId; }
 const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -69,11 +69,11 @@ export async function exchangeClientEnquiryAccessToken(rawToken: string) {
   return { cookie: encodeSession(session), enquiryId: session.enquiryId };
 }
 
-export async function getClientEnquirySession(request: NextRequest, enquiryId?: string) {
-  const raw = request.cookies.get(CLIENT_ENQUIRY_COOKIE)?.value;
+export async function getClientEnquirySession(request: NextRequest, enquiryId: string) {
+  const raw = request.cookies.get(clientEnquiryCookieName(enquiryId))?.value;
   if (!raw) return null;
   const session = decodeSession(raw);
-  if (!session || (enquiryId && session.enquiryId !== enquiryId)) return null;
+  if (!session || session.enquiryId !== enquiryId) return null;
   const sql = getDatabase();
   const rows = await sql`SELECT token_id
     FROM client_enquiry_access_tokens
