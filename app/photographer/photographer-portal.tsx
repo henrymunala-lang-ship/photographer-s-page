@@ -43,6 +43,7 @@ type Draft={publicName:string;bio:string;location:string;categories:string};
 type Photo={id:string;title:string;caption:string;imageUrl:string;altText:string;category:string;sortOrder:number;publishState:string};
 type Stage={kind:"profile"|"hero"|"gallery"|"gallery-edit";file:File;url:string;x:number;y:number};
 type PhotoEdit={id:string;title:string;caption:string;category:string;altText:string};
+type ClientEnquiry={enquiry_id:string;customer_name:string;customer_email:string;customer_phone:string;event_type:string;event_date:string|null;event_location:string;message:string;status:string;created_at:string};
 const blank:Draft={publicName:"",bio:"",location:"",categories:""};
 
 function makeCrop(file:File,aspect:number,x:number,y:number):Promise<File>{
@@ -90,6 +91,7 @@ export default function PhotographerPortal(){
   finally{setLoading(false);}
  }
  useEffect(()=>{void load();},[]);
+ useEffect(()=>{if(!profile)return;let live=true;setEnquiriesLoading(true);setEnquiriesError("");fetch("/api/photographer/enquiries",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||"Enquiries could not be loaded.");return d;}).then(d=>{if(live)setEnquiries(Array.isArray(d.enquiries)?d.enquiries:[]);}).catch(e=>{if(live)setEnquiriesError(e instanceof Error?e.message:"Enquiries could not be loaded.");}).finally(()=>{if(live)setEnquiriesLoading(false);});return()=>{live=false};},[profile?.id]);
  useEffect(()=>()=>{if(stage?.url)URL.revokeObjectURL(stage.url);},[stage?.url]);
  useEffect(()=>()=>{if(fileUrl)URL.revokeObjectURL(fileUrl);},[fileUrl]);
  function choose(kind:Stage["kind"],f?:File){
@@ -162,6 +164,7 @@ export default function PhotographerPortal(){
   }catch(e){setGalleryMessage(e instanceof Error?e.message:"Gallery order could not be saved.");try{await loadGallery();}catch{}}
   finally{setBusy(false);}
  }
+ async function updateEnquiryStatus(enquiryId:string,status:string){setEnquiryBusy(enquiryId);try{const r=await fetch("/api/photographer/enquiries",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({enquiryId,status})}),d=await r.json();if(!r.ok)throw new Error(d.error||"Enquiry status could not be updated.");setEnquiries(v=>v.map(item=>item.enquiry_id===enquiryId?{...item,status:d.enquiry.status}:item));notify("Enquiry marked as "+status.replaceAll("_"," ")+".","success","Enquiry updated");}catch(e){notify(e instanceof Error?e.message:"Enquiry status could not be updated.","error","Update failed");}finally{setEnquiryBusy(null);}}
  async function logout(){await fetch("/api/photographer/auth/logout",{method:"POST"});window.location.href="/photographer/login";}
  if(loading)return <PageSkeleton label="Opening your photographer workspace" variant="profile"/>;
  return <main style={{minHeight:"100vh",background:"#f5f2ec",padding:"34px 18px 70px",color:"#25231f"}}>
@@ -189,7 +192,13 @@ export default function PhotographerPortal(){
      </form>
     </section>
     <section style={{...panel,marginTop:18}}>
-     <p style={kicker}>02 — PROFILE PHOTOGRAPHS</p><h2 style={sectionTitle}>Update your pictures</h2>
+     <section style={{...panel,marginTop:18}}>
+      <p style={kicker}>02 — CLIENT ENQUIRIES</p><h2 style={sectionTitle}>People interested in your work</h2>
+      <p style={intro}>Customer requests sent from your published profile are private to you and authorised Lens & Light support administrators. Use the contact details to follow up directly.</p>
+      {enquiriesLoading?<p style={note}>Loading your enquiries…</p>:enquiriesError?<p role="alert" style={note}>{enquiriesError}</p>:enquiries.length===0?<div style={emptyGallery}>No customer enquiries yet. New requests from your public profile will appear here.</div>:<div style={{display:"grid",gap:12,marginTop:16}}>{enquiries.map(item=><article key={item.enquiry_id} style={{border:"1px solid #dedbd3",background:"#fff",padding:15}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{item.customer_name}</strong><p style={note}>{item.event_type} · {item.event_location}{item.event_date?" · "+item.event_date:""}</p></div><select aria-label={"Enquiry status for "+item.customer_name} style={input} value={item.status} disabled={enquiryBusy===item.enquiry_id} onChange={e=>void updateEnquiryStatus(item.enquiry_id,e.target.value)}><option value="new">New</option><option value="in_progress">In progress</option><option value="responded">Responded</option><option value="closed">Closed</option></select></div><p style={{fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",color:"#514d45"}}>{item.message}</p><div style={{display:"flex",gap:14,flexWrap:"wrap"}}><a href={"mailto:"+item.customer_email} style={{...note,color:"#78654d"}}>{item.customer_email}</a><a href={"tel:"+item.customer_phone.replace(/[^+\\d]/g,"")} style={{...note,color:"#78654d"}}>{item.customer_phone}</a></div><small style={{...note,fontSize:9}}>{new Date(item.created_at).toLocaleString("en-KE")}</small></article>)}</div>}
+     </section>
+     <section style={{...panel,marginTop:18}}>
+     <p style={kicker}>03 — PROFILE PHOTOGRAPHS</p><h2 style={sectionTitle}>Update your pictures</h2>
      <p style={intro}>Choose a new photo, adjust its position and preview the crop. Your current picture stays public until you confirm the new one.</p>
      <div style={grid}>
       <div><h3 style={subTitle}>Profile picture · Square</h3>{profile.profileImageUrl?<img src={imagePreviewUrl(profile.profileImageUrl)} alt="Current profile picture" onError={e=>handleImagePreviewError(e,profile.profileImageUrl)} style={{width:140,height:140,borderRadius:"50%",objectFit:"cover",marginBottom:12}}/>:<div style={empty}>No profile picture yet</div>}<label style={label}>Choose a new profile picture<input style={fileInput} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{choose("profile",e.target.files?.[0]);e.currentTarget.value="";}}/></label></div>
