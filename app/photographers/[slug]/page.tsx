@@ -75,6 +75,10 @@ export default function PublicPhotographerProfile() {
     return () => controller.abort();
   }, [slug]);
 
+  useEffect(() => {
+    if (enquiryOpen) document.getElementById("photographer-enquiry")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [enquiryOpen]);
+
   async function submitEnquiry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (enquiryBusy) return;
