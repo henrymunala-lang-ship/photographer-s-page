@@ -60,29 +60,37 @@ function safeHttpsUrl(value: unknown, required = false) {
   }
 }
 
-function clientRateKey(request: NextRequest) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || request.headers.get("x-real-ip") || "unknown";
-  return createHmac("sha256", secret()).update("application-submit:" + ip).digest("hex");
+function rateKey(secretValue: string, scope: string, identity: string) {
+  return createHmac("sha256", secretValue).update("application-submit:" + scope + ":" + identity).digest("hex");
 }
 
-async function consumeRateLimit(request: NextRequest) {
+async function consumeRateLimit(request: NextRequest, email: string) {
   const sql = getDatabase();
-  const key = clientRateKey(request);
-  const rows = await sql`INSERT INTO application_rate_limits (rate_key, window_started_at, request_count)
-    VALUES (${key}, now(), 1)
-    ON CONFLICT (rate_key) DO UPDATE SET
-      request_count = CASE
-        WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN 1
-        ELSE application_rate_limits.request_count + 1
-      END,
-      window_started_at = CASE
-        WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN now()
-        ELSE application_rate_limits.window_started_at
-      END,
-      updated_at = now()
-    RETURNING request_count`;
-  return Number(rows[0]?.request_count ?? 999);
+  const securitySecret = secret();
+  // Prefer Vercel's platform-provided client IP header over forwarded values.
+  const ip = request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
+  async function consume(key: string) {
+    const rows = await sql`INSERT INTO application_rate_limits (rate_key, window_started_at, request_count)
+      VALUES (${key}, now(), 1)
+      ON CONFLICT (rate_key) DO UPDATE SET
+        request_count = CASE
+          WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN 1
+          ELSE application_rate_limits.request_count + 1
+        END,
+        window_started_at = CASE
+          WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN now()
+          ELSE application_rate_limits.window_started_at
+        END,
+        updated_at = now()
+      RETURNING request_count`;
+    return Number(rows[0]?.request_count ?? 999);
+  }
+  const [ipAttempts, emailAttempts] = await Promise.all([
+    consume(rateKey(securitySecret, "ip", ip)),
+    consume(rateKey(securitySecret, "email", email))
+  ]);
+  return { limited: ipAttempts > 5 || emailAttempts > 5 };
 }
 
 function validEmail(value: string) {
@@ -151,8 +159,8 @@ export async function POST(request: NextRequest) {
 
   try {
     await migrateApplicationDatabase();
-    const rate = await consumeRateLimit(request);
-    if (rate > 5) return noStore({ error: "Too many application attempts. Please try again later." }, 429);
+    const rate = await consumeRateLimit(request, email);
+    if (rate.limited) return noStore({ error: "Too many application attempts. Please try again later." }, 429);
 
     const input: ApplicationSubmissionInput = {
       name, email, phone, town, region, categories, introduction, serviceAreas,
