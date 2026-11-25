@@ -73,6 +73,12 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  let originMatches = false;
+  try { originMatches = !!origin && new URL(origin).host === req.headers.get("host"); } catch { originMatches = false; }
+  if (!originMatches || !req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return NextResponse.json({ error: "A same-origin JSON request is required." }, { status: 403, headers: noStore });
+  }
   const actor = await authorize();
   if (!actor) return NextResponse.json({ error: "Super Admin access required." }, { status: 403, headers: noStore });
   const body = await req.json().catch(() => ({})) as Record<string, unknown>;
