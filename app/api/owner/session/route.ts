@@ -30,6 +30,7 @@ async function consumeOwnerLoginLimit(request:NextRequest,username:string){
  return { limited: accountAttempts>10 || ipAttempts>40 };
 }
 export async function POST(request:NextRequest){
+ if(process.env.VERCEL_ENV!=="preview")return noStore({error:"Owner sign-in is restricted to Preview deployments."},404);
  if(!sameOrigin(request)||!request.headers.get("content-type")?.toLowerCase().includes("application/json"))return noStore({error:"Invalid request."},403);
  const body=await request.json().catch(()=>({})) as {username?:string;password?:string};
  const username=String(body.username??"").trim().toLowerCase(),password=String(body.password??"");
@@ -51,6 +52,7 @@ export async function POST(request:NextRequest){
  }catch{return noStore({error:"Administrator sign-in is temporarily unavailable."},503);}
 }
 export async function DELETE(request:NextRequest){
+ if(process.env.VERCEL_ENV!=="preview")return noStore({error:"Owner sign-out is restricted to Preview deployments."},404);
  if(!sameOrigin(request))return noStore({error:"Invalid request."},403);
  const response=noStore({ok:true});
  response.cookies.set(cookieName(),"",{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/",maxAge:0});
