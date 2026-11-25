@@ -18,7 +18,7 @@ export async function GET() {
     const sql = getDatabase();
     const rows = await sql`SELECT enquiry_id, photographer_id, photographer_name, photographer_slug,
       customer_name, customer_email, customer_phone, event_type, event_date, event_location,
-      message, status, internal_note, created_at, updated_at
+      message, status, internal_note, customer_notification_state, photographer_notification_state, created_at, updated_at
       FROM client_enquiries ORDER BY created_at DESC LIMIT 250`;
     return NextResponse.json({ enquiries: rows, count: rows.length }, { headers: noStore });
   } catch {
