@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v6-photographer-session-version";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v7-client-enquiries";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -153,6 +153,31 @@ const statements = [
   `CREATE INDEX IF NOT EXISTS photographer_invitations_active_idx
     ON photographer_invitations (photographer_id, expires_at)
     WHERE used_at IS NULL AND revoked_at IS NULL`,
+  `CREATE TABLE IF NOT EXISTS client_enquiries (
+    enquiry_id text PRIMARY KEY,
+    photographer_id text NOT NULL,
+    photographer_name text NOT NULL,
+    photographer_slug text NOT NULL,
+    customer_name text NOT NULL,
+    customer_email text NOT NULL,
+    customer_email_hash char(64) NOT NULL,
+    customer_phone text NOT NULL,
+    event_type text NOT NULL,
+    event_date date,
+    event_location text NOT NULL,
+    message text NOT NULL CHECK (char_length(message) BETWEEN 20 AND 4000),
+    status text NOT NULL DEFAULT 'new'
+      CHECK (status IN ('new','in_progress','responded','closed')),
+    internal_note text NOT NULL DEFAULT '',
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS client_enquiries_photographer_idx
+    ON client_enquiries (photographer_id, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS client_enquiries_email_hash_idx
+    ON client_enquiries (customer_email_hash, created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS client_enquiries_status_idx
+    ON client_enquiries (status, created_at DESC)`,
   `CREATE TABLE IF NOT EXISTS application_rate_limits (
     rate_key char(64) PRIMARY KEY,
     window_started_at timestamptz NOT NULL DEFAULT now(),
@@ -164,7 +189,7 @@ const statements = [
 export async function migrateApplicationDatabase() {
   const sql = getDatabase();
   const applied = await sql`SELECT version FROM lens_light_schema_migrations WHERE version = ${APPLICATION_SCHEMA_VERSION} LIMIT 1`;
-  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 13 };
+  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 14 };
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
   await sql`INSERT INTO lens_light_schema_migrations (version)
@@ -180,6 +205,7 @@ export async function migrateApplicationDatabase() {
         'application_operations',
         'application_outbox',
         'application_rate_limits',
+        'client_enquiries',
         'photographer_accounts',
         'photographer_applicant_accounts',
         'photographer_account_setup_tokens',
@@ -196,6 +222,7 @@ export async function migrateApplicationDatabase() {
     "application_operations",
     "application_outbox",
     "application_rate_limits",
+    "client_enquiries",
     "photographer_accounts",
     "photographer_applicant_accounts",
     "photographer_account_setup_tokens",
