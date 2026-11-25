@@ -63,3 +63,20 @@
   .owner-sidebar>.owner-brand>span{width:38px;height:38px;border-radius:9px}
   .owner-sidebar>.owner-brand>b{min-height:39px;padding:6px 9px 6px 10px;font-size:11px;letter-spacing:.12em}
 }
+
+
+/* Client enquiry inbox */
+.owner-enquiry-list{display:grid;gap:14px}
+.owner-enquiry-card{padding:20px 22px}
+.owner-enquiry-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.owner-enquiry-head .owner-eyebrow{margin:0 0 7px}
+.owner-enquiry-head h2{font:400 23px 'Playfair Display',Georgia,serif;margin:0 0 6px}
+.owner-enquiry-head p:not(.owner-eyebrow){font-size:9px;color:#77746c;line-height:1.7;margin:0}
+.owner-enquiry-head p strong{color:#4c463c}
+.owner-enquiry-head select{border:1px solid #dedbd2;background:#fffefa;padding:10px;color:#292722;font:10px 'DM Sans',sans-serif}
+.owner-enquiry-message{margin:18px 0;padding:15px;background:#f7f5ef;border-left:2px solid #a58b69;color:#4f4b43;font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.owner-enquiry-contact{display:flex;gap:17px;flex-wrap:wrap}
+.owner-enquiry-contact a{display:inline-flex;align-items:center;gap:6px;color:#78654d;text-decoration:none;font-size:9px;overflow-wrap:anywhere}
+.owner-enquiry-contact a:hover{text-decoration:underline}
+.owner-enquiry-id{display:block;margin-top:14px;color:#918a7e;font-size:8px;letter-spacing:.07em}
+@media(max-width:700px){.owner-enquiry-head{flex-direction:column}.owner-enquiry-head select{width:100%}.owner-enquiry-contact{display:grid;gap:10px}}
