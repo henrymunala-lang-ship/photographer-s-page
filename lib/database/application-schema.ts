@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v8-client-messaging";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v9-owner-notification-state";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -181,6 +181,7 @@ const statements = [
   `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS photographer_email text NOT NULL DEFAULT ''`,
   `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS customer_notification_state text NOT NULL DEFAULT 'pending'`,
   `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS photographer_notification_state text NOT NULL DEFAULT 'pending'`,
+  `ALTER TABLE client_enquiries ADD COLUMN IF NOT EXISTS owner_notification_state text NOT NULL DEFAULT 'not_recorded'`,
   `CREATE TABLE IF NOT EXISTS client_enquiry_messages (
     message_id text PRIMARY KEY,
     enquiry_id text NOT NULL REFERENCES client_enquiries(enquiry_id) ON DELETE CASCADE,
