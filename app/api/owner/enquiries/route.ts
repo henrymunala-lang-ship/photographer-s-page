@@ -20,14 +20,24 @@ export async function GET() {
     try {
       rows = await sql`SELECT enquiry_id, photographer_id, photographer_name, photographer_slug,
         customer_name, customer_email, customer_phone, event_type, event_date, event_location,
-        message, status, internal_note, customer_notification_state, photographer_notification_state, created_at, updated_at
+        message, status, internal_note, owner_notification_state, customer_notification_state,
+        photographer_notification_state, created_at, updated_at
         FROM client_enquiries ORDER BY created_at DESC LIMIT 250`;
     } catch {
-      // Version 1 inbox remains readable until the additive V2 messaging migration is applied.
-      rows = await sql`SELECT enquiry_id, photographer_id, photographer_name, photographer_slug,
-        customer_name, customer_email, customer_phone, event_type, event_date, event_location,
-        message, status, internal_note, created_at, updated_at
-        FROM client_enquiries ORDER BY created_at DESC LIMIT 250`;
+      try {
+        // V2 inbox remains readable before the owner-notification status migration is applied.
+        rows = await sql`SELECT enquiry_id, photographer_id, photographer_name, photographer_slug,
+          customer_name, customer_email, customer_phone, event_type, event_date, event_location,
+          message, status, internal_note, customer_notification_state, photographer_notification_state,
+          created_at, updated_at
+          FROM client_enquiries ORDER BY created_at DESC LIMIT 250`;
+      } catch {
+        // Version 1 inbox remains readable until the additive V2 messaging migration is applied.
+        rows = await sql`SELECT enquiry_id, photographer_id, photographer_name, photographer_slug,
+          customer_name, customer_email, customer_phone, event_type, event_date, event_location,
+          message, status, internal_note, created_at, updated_at
+          FROM client_enquiries ORDER BY created_at DESC LIMIT 250`;
+      }
     }
     return NextResponse.json({ enquiries: rows, count: rows.length }, { headers: noStore });
   } catch {
