@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeClientEnquiryAccessToken, CLIENT_ENQUIRY_COOKIE, clientEnquiryCookieOptions } from "@/lib/client-enquiries/access";
+import { exchangeClientEnquiryAccessToken, clientEnquiryCookieName, clientEnquiryCookieOptions } from "@/lib/client-enquiries/access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const exchanged = await exchangeClientEnquiryAccessToken(token);
     if (!exchanged) return NextResponse.json({ error: "This private link is invalid, expired or already used. Request a fresh link by email." }, { status: 400, headers: noStore });
     const response = NextResponse.json({ ok: true, enquiryId: exchanged.enquiryId }, { headers: noStore });
-    response.cookies.set(CLIENT_ENQUIRY_COOKIE, exchanged.cookie, clientEnquiryCookieOptions());
+    response.cookies.set(clientEnquiryCookieName(exchanged.enquiryId), exchanged.cookie, clientEnquiryCookieOptions());
     return response;
   } catch {
     return NextResponse.json({ error: "Private access could not be verified. Please try again." }, { status: 503, headers: noStore });
