@@ -1,7 +1,8 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { appendRows, readValues, updateValues } from "@/lib/integrations/google-sheets/client";
 import { hashPassword, getAdmins } from "@/lib/owner/admin-auth";
+import { getDatabase } from "@/lib/database/neon";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +54,17 @@ export async function POST(request: NextRequest) {
     if (!email || password.length < 12 || password.length > 128 ||
         password !== String(body.confirmPassword ?? "") || fullName.length > 120) {
       return noStore({ error: "Use the configured owner email and matching password of at least 12 characters." }, 400);
+    }
+
+    // Claim this setup/recovery secret once, even if requests arrive concurrently.
+    const sql = getDatabase();
+    const keyDigest = createHash("sha256").update(key).digest("hex");
+    const claimed = await sql`INSERT INTO application_rate_limits (rate_key,window_started_at,request_count)
+      VALUES (${"owner-setup-key:" + keyDigest},now(),1)
+      ON CONFLICT (rate_key) DO NOTHING
+      RETURNING rate_key`;
+    if (!claimed.length) {
+      return noStore({ error: "This one-time setup/recovery key has already been used. Rotate the Preview setup key before another recovery." }, 409);
     }
 
     const admins = await getAdmins();
