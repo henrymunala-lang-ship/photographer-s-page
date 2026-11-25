@@ -96,6 +96,7 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
   const eventDate = text(payload.eventDate, 10);
   const eventLocation = text(payload.eventLocation, 160);
   const message = text(payload.message, 4000);
+  const validEventDate = !eventDate || (() => { const parsed = new Date(eventDate + "T00:00:00Z"); return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === eventDate; })();
   if (name.length < 2 || !validEmail(email) || phone.length < 7 ||
       !/^[+0-9().\s-]+$/.test(phone) || eventType.length < 2 ||
       (eventDate && !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) ||
