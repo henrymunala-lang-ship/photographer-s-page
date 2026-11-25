@@ -84,8 +84,7 @@ export async function GET() {
     };
     return response(contact, "google_sheets_with_approved_defaults");
   } catch {
-    // The owner explicitly approved these contact details for public display.
-    // Keep the public page usable during a temporary Sheets read outage.
+    // Do not disclose contact details when their current visibility cannot be verified.
     return unavailableResponse();
   }
 }
