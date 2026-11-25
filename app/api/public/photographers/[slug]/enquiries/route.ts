@@ -126,6 +126,7 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
       (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
       VALUES (${"msg_" + randomUUID()}, ${enquiryId}, 'customer', ${emailHash}, ${name}, ${message})`;
     const access = await createClientEnquiryAccessToken(enquiryId);
+    const confirmationAccess = await createClientEnquiryAccessToken(enquiryId);
     const customerAccessUrl = request.nextUrl.origin + "/enquiries/" + encodeURIComponent(enquiryId) + "#access=" + encodeURIComponent(access.token);
     const [customerNotification, photographerNotification] = await Promise.all([
       sendClientEnquiryEmail({
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
       notification: notification.state,
       customerNotification: customerNotification.state,
       photographerNotification: photographerNotification.state,
-      conversationPath: "/enquiries/" + encodeURIComponent(enquiryId) + "#access=" + encodeURIComponent(access.token),
+      conversationPath: "/enquiries/" + encodeURIComponent(enquiryId) + "#access=" + encodeURIComponent(confirmationAccess.token),
       message: "Thank you. Your enquiry has been securely sent to " + photographer.name + ". You can continue the conversation using the private link below."
     }, 201);
   } catch (error) {
