@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { createClientEnquiryAccessToken } from "@/lib/client-enquiries/access";
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
     const sql = getDatabase();
     const rows = await sql`SELECT enquiry_id, customer_name, customer_email
       FROM client_enquiries
-      WHERE enquiry_id = ${id} AND customer_email_hash = encode(digest(${email}, 'sha256'), 'hex')
+      WHERE enquiry_id = ${id} AND customer_email_hash = ${createHash("sha256").update(email).digest("hex")}
       LIMIT 1`;
     if (rows.length) {
       const token = await createClientEnquiryAccessToken(id);
