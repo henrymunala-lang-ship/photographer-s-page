@@ -65,9 +65,12 @@ export async function createApplicantAccessToken(registrationId: string) {
 export async function exchangeApplicantAccessToken(rawToken: string) {
   if (rawToken.length < 32 || rawToken.length > 256) return null;
   const sql = getDatabase();
+  // Claim the link atomically on first exchange. A concurrent or later replay
+  // cannot mint another applicant session from the same private link.
   const rows = await sql`UPDATE applicant_access_tokens
     SET last_used_at = now()
     WHERE token_hash = ${digest(rawToken)}
+      AND last_used_at IS NULL
       AND revoked_at IS NULL
       AND expires_at > now()
     RETURNING token_id, registration_id`;
