@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (!session) return response({ error: "Photographer sign-in is required." }, 401);
     const sql = getDatabase();
     const rows = await sql`SELECT enquiry_id, photographer_name, customer_name, customer_email,
-      customer_phone, event_type, event_date, event_location, message, status, created_at, updated_at
+      customer_phone, event_type, event_date, event_location, message, status, customer_notification_state, photographer_notification_state, created_at, updated_at
       FROM client_enquiries WHERE photographer_id = ${session.photographerId}
       ORDER BY created_at DESC LIMIT 200`;
     return response({ enquiries: rows, count: rows.length });
