@@ -4,6 +4,8 @@ import { getDatabase } from "@/lib/database/neon";
 import { readValues } from "@/lib/integrations/google-sheets/client";
 import { photographerSlug } from "@/lib/photographers/slug";
 import { sendApplicationNotification } from "@/lib/applications/notifications";
+import { createClientEnquiryAccessToken } from "@/lib/client-enquiries/access";
+import { sendClientEnquiryEmail } from "@/lib/client-enquiries/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -113,13 +115,40 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
     const emailHash = createHash("sha256").update(email).digest("hex");
     const sql = getDatabase();
     const inserted = await sql`INSERT INTO client_enquiries
-      (enquiry_id, photographer_id, photographer_name, photographer_slug,
+      (enquiry_id, photographer_id, photographer_name, photographer_slug, photographer_email,
        customer_name, customer_email, customer_email_hash, customer_phone,
        event_type, event_date, event_location, message, status)
-      VALUES (${enquiryId}, ${photographer.id}, ${photographer.name}, ${context.params.slug},
+      VALUES (${enquiryId}, ${photographer.id}, ${photographer.name}, ${context.params.slug}, ${photographer.email},
        ${name}, ${email}, ${emailHash}, ${phone}, ${eventType},
        ${eventDate || null}::date, ${eventLocation}, ${message}, 'new')
       RETURNING enquiry_id, status, created_at`;
+    await sql`INSERT INTO client_enquiry_messages
+      (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
+      VALUES (${"msg_" + randomUUID()}, ${enquiryId}, 'customer', ${emailHash}, ${name}, ${message})`;
+    const access = await createClientEnquiryAccessToken(enquiryId);
+    const customerAccessUrl = request.nextUrl.origin + "/enquiries/" + encodeURIComponent(enquiryId) + "#access=" + encodeURIComponent(access.token);
+    const [customerNotification, photographerNotification] = await Promise.all([
+      sendClientEnquiryEmail({
+        to: email,
+        subject: "We received your Lens & Light enquiry",
+        greeting: name,
+        message: "Thank you for contacting " + photographer.name + ". Your enquiry has been received. You can use this private link to continue the conversation with the photographer. The link expires in 24 hours and can be used once.",
+        actionLabel: "Open your private conversation",
+        actionUrl: customerAccessUrl
+      }),
+      sendClientEnquiryEmail({
+        to: photographer.email,
+        subject: "New client enquiry — Lens & Light",
+        greeting: photographer.name,
+        message: "A new enquiry has arrived for your published profile. Sign in to your photographer workspace to review the details and reply privately.",
+        actionLabel: "Open photographer workspace",
+        actionUrl: request.nextUrl.origin + "/photographer"
+      })
+    ]);
+    await sql`UPDATE client_enquiries SET
+      customer_notification_state = ${customerNotification.state},
+      photographer_notification_state = ${photographerNotification.state}
+      WHERE enquiry_id = ${enquiryId}`;
     const ownerEmail = process.env.GOOGLE_OAUTH_OWNER_EMAIL ?? "";
     const notification = ownerEmail
       ? await sendApplicationNotification({
@@ -134,7 +163,9 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
       ok: true,
       enquiry: inserted[0],
       notification: notification.state,
-      message: "Thank you. Your enquiry has been securely sent to " + photographer.name + ". Lens & Light will follow up using the contact details you provided."
+      customerNotification: customerNotification.state,
+      photographerNotification: photographerNotification.state,
+      message: "Thank you. Your enquiry has been securely sent to " + photographer.name + ". We have also prepared a private conversation link for follow-up."
     }, 201);
   } catch (error) {
     const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
