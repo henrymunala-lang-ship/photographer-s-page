@@ -165,7 +165,8 @@ export async function POST(request: NextRequest, context: { params: { slug: stri
       notification: notification.state,
       customerNotification: customerNotification.state,
       photographerNotification: photographerNotification.state,
-      message: "Thank you. Your enquiry has been securely sent to " + photographer.name + ". We have also prepared a private conversation link for follow-up."
+      conversationPath: "/enquiries/" + encodeURIComponent(enquiryId) + "#access=" + encodeURIComponent(access.token),
+      message: "Thank you. Your enquiry has been securely sent to " + photographer.name + ". You can continue the conversation using the private link below."
     }, 201);
   } catch (error) {
     const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "";
