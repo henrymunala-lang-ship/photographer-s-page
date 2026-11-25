@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
     const payload = await request.json();
     const id = typeof payload?.enquiryId === "string" ? payload.enquiryId.trim() : "";
     const status = typeof payload?.status === "string" ? payload.status.trim() : "";
-    if (!/^enq_[0-9a-f-]{36}$/i.test(id) || !["in_progress","responded","closed"].includes(status)) return response({ error: "Choose a valid enquiry status." }, 400);
+    if (!/^enq_[0-9a-f-]{36}$/i.test(id) || !["new","in_progress","responded","closed"].includes(status)) return response({ error: "Choose a valid enquiry status." }, 400);
     const sql = getDatabase();
     const rows = await sql`UPDATE client_enquiries SET status = ${status}, updated_at = now()
       WHERE enquiry_id = ${id} AND photographer_id = ${session.photographerId}
