@@ -21,7 +21,27 @@ const approvedDefaults = {
 const noStore = { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 
 function response(contact = approvedDefaults, source = "approved_public_defaults") {
-  return NextResponse.json({ published: contact.visibility === "public", contact: contact.visibility === "public" ? contact : { ...approvedDefaults, email:"", phone:"", phoneSecondary:"", instagram:"", hours:"", visibility:"hidden" }, source }, { headers: noStore });
+  const published = String(contact.visibility ?? "").trim().toLowerCase() === "public";
+  const publicContact = published
+    ? { ...contact, visibility: "public" }
+    : {
+        email: "",
+        phone: "",
+        phoneSecondary: "",
+        whatsapp: "",
+        website: "",
+        address: "",
+        instagram: "",
+        facebook: "",
+        tiktok: "",
+        hours: "",
+        visibility: "hidden",
+      };
+  return NextResponse.json({ published, contact: publicContact, source }, { headers: noStore });
+}
+
+function unavailableResponse() {
+  return response({ ...approvedDefaults, visibility: "hidden" }, "contact_settings_unavailable");
 }
 
 export async function GET() {
@@ -29,7 +49,7 @@ export async function GET() {
     const rows = await readValues("'13_SETTINGS'!A1:I1000");
     const headers = (rows[0] ?? []).map(value => String(value ?? "").trim());
     const scopeIndex = headers.indexOf("scope"), keyIndex = headers.indexOf("setting_key"), valueIndex = headers.indexOf("setting_value");
-    if (scopeIndex < 0 || keyIndex < 0 || valueIndex < 0) return response();
+    if (scopeIndex < 0 || keyIndex < 0 || valueIndex < 0) return unavailableResponse();
 
     const values: Record<string,string> = {
       contact_email: approvedDefaults.email,
@@ -66,6 +86,6 @@ export async function GET() {
   } catch {
     // The owner explicitly approved these contact details for public display.
     // Keep the public page usable during a temporary Sheets read outage.
-    return response();
+    return unavailableResponse();
   }
 }
