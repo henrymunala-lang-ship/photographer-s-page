@@ -1,7 +1,7 @@
 import "server-only";
 import { getDatabase } from "@/lib/database/neon";
 
-export const APPLICATION_SCHEMA_VERSION = "application-storage-v10-message-idempotency";
+export const APPLICATION_SCHEMA_VERSION = "application-storage-v11-client-portal";
 
 const statements = [
   `CREATE TABLE IF NOT EXISTS lens_light_schema_migrations (
@@ -224,6 +224,18 @@ const statements = [
   )`,
   `CREATE INDEX IF NOT EXISTS client_enquiry_access_tokens_thread_idx
     ON client_enquiry_access_tokens (enquiry_id, expires_at)`,
+  `CREATE TABLE IF NOT EXISTS client_portal_access_tokens (
+    token_id text PRIMARY KEY,
+    customer_email_hash char(64) NOT NULL,
+    token_hash char(64) NOT NULL UNIQUE,
+    expires_at timestamptz NOT NULL,
+    session_expires_at timestamptz,
+    used_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+  )`,
+  `CREATE INDEX IF NOT EXISTS client_portal_access_tokens_email_idx
+    ON client_portal_access_tokens (customer_email_hash, expires_at)`,
   `CREATE TABLE IF NOT EXISTS application_rate_limits (
     rate_key char(64) PRIMARY KEY,
     window_started_at timestamptz NOT NULL DEFAULT now(),
