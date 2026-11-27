@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin, can, appendAudit } from "@/lib/owner/admin-auth";
 import { getDatabase } from "@/lib/database/neon";
@@ -58,26 +58,51 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
   if (!sameOrigin(request) || !request.headers.get("content-type")?.toLowerCase().includes("application/json")) return response({ error: "Invalid request." }, 403);
   try {
     const id = context.params.enquiryId;
+    const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const body = typeof payload.body === "string" ? payload.body.trim() : "";
+    if (body.length < 1 || body.length > 4000) return response({ error: "Messages must contain between 1 and 4,000 characters." }, 400);
+    const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : "";
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) return response({ error: "A valid message request key is required. Please refresh and try again." }, 400);
+    const payloadHash = createHash("sha256").update(body).digest("hex");
+    const sql = getDatabase();
+    const owned = await sql`SELECT customer_name, customer_email, photographer_name
+      FROM client_enquiries WHERE enquiry_id = ${id} LIMIT 1`;
+    if (!owned.length) return response({ error: "Enquiry not found." }, 404);
+    const prior = await sql`SELECT message_id, sender_type, sender_name, body, created_at, payload_hash
+      FROM client_enquiry_messages
+      WHERE enquiry_id = ${id} AND sender_type = 'admin' AND sender_ref = ${String(actor.adminId)} AND idempotency_key = ${idempotencyKey}
+      LIMIT 1`;
+    if (prior.length) {
+      if (String(prior[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+      const { payload_hash: _hash, ...message } = prior[0];
+      return response({ ok: true, message, notification: "already_recorded", duplicate: true });
+    }
     const ip = request.headers.get("x-real-ip") || "unknown";
     const [adminAttempts, ipAttempts] = await Promise.all([
       consumeMessageLimit("admin", actor.adminId + ":enquiry:" + id),
       consumeMessageLimit("ip", ip)
     ]);
     if (adminAttempts > 30 || ipAttempts > 60) return response({ error: "Too many messages have been sent. Please wait before replying again." }, 429);
-    const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
-    const body = typeof payload.body === "string" ? payload.body.trim() : "";
-    if (body.length < 1 || body.length > 4000) return response({ error: "Messages must contain between 1 and 4,000 characters." }, 400);
-    const sql = getDatabase();
-    const owned = await sql`SELECT customer_name, customer_email, photographer_name
-      FROM client_enquiries WHERE enquiry_id = ${id} LIMIT 1`;
-    if (!owned.length) return response({ error: "Enquiry not found." }, 404);
     const enquiry = owned[0];
     const senderName = String(actor.name || actor.email || "Lens & Light support");
     const senderRef = String(actor.adminId || actor.email || "admin");
     const inserted = await sql`INSERT INTO client_enquiry_messages
-      (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
-      VALUES (${"msg_" + randomUUID()}, ${id}, 'admin', ${senderRef}, ${senderName}, ${body})
+      (message_id, enquiry_id, sender_type, sender_ref, sender_name, body, idempotency_key, payload_hash)
+      VALUES (${"msg_" + randomUUID()}, ${id}, 'admin', ${senderRef}, ${senderName}, ${body}, ${idempotencyKey}, ${payloadHash})
+      ON CONFLICT DO NOTHING
       RETURNING message_id, sender_type, sender_name, body, created_at`;
+    if (!inserted.length) {
+      const duplicate = await sql`SELECT message_id, sender_type, sender_name, body, created_at, payload_hash
+        FROM client_enquiry_messages
+        WHERE enquiry_id = ${id} AND sender_type = 'admin' AND sender_ref = ${senderRef} AND idempotency_key = ${idempotencyKey}
+        LIMIT 1`;
+      if (duplicate.length) {
+        if (String(duplicate[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+        const { payload_hash: _hash, ...message } = duplicate[0];
+        return response({ ok: true, message, notification: "already_recorded", duplicate: true });
+      }
+      return response({ error: "The support message could not be saved." }, 503);
+    }
     const token = await createClientEnquiryAccessToken(id);
     const url = request.nextUrl.origin + "/enquiries/" + encodeURIComponent(id) + "#access=" + encodeURIComponent(token.token);
     const notification = await sendClientEnquiryEmail({
