@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { getApplicantSession } from "@/lib/applications/applicant-access";
@@ -6,6 +6,25 @@ import { sendApplicationNotification } from "@/lib/applications/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function messageRateKey(scope: string, identity: string) {
+  const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
+  if (secret.length < 32) throw new Error("Message rate limiting is not configured.");
+  return createHmac("sha256", secret).update("applicant-message:" + scope + ":" + identity).digest("hex");
+}
+
+async function consumeMessageLimit(scope: string, identity: string) {
+  const sql = getDatabase();
+  const key = messageRateKey(scope, identity);
+  const rows = await sql`INSERT INTO application_rate_limits (rate_key, window_started_at, request_count)
+    VALUES (${key}, now(), 1)
+    ON CONFLICT (rate_key) DO UPDATE SET
+      request_count = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN 1 ELSE application_rate_limits.request_count + 1 END,
+      window_started_at = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN now() ELSE application_rate_limits.window_started_at END,
+      updated_at = now()
+    RETURNING request_count`;
+  return Number(rows[0]?.request_count ?? 999);
+}
 
 function sameOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -15,6 +34,7 @@ function sameOrigin(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") return NextResponse.json({ error: "Preview only." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
   try {
     const session = await getApplicantSession(request);
     if (!session) return NextResponse.json({ error: "Applicant access is required." }, { status: 401, headers: { "Cache-Control": "private, no-store" } });
@@ -31,6 +51,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") return NextResponse.json({ error: "Preview only." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
   if (!sameOrigin(request) || !request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return NextResponse.json({ error: "Invalid request." }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
   }
@@ -41,6 +62,16 @@ export async function POST(request: NextRequest) {
     const body = typeof payload?.body === "string" ? payload.body.trim() : "";
     if (!body || body.length > 4000) {
       return NextResponse.json({ error: "Messages must contain between 1 and 4,000 characters." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
+    const [registrationAttempts, ipAttempts] = await Promise.all([
+      consumeMessageLimit("registration", session.registrationId),
+      consumeMessageLimit("ip", ip)
+    ]);
+    if (registrationAttempts > 30 || ipAttempts > 60) {
+      return NextResponse.json({ error: "Too many messages have been sent. Please wait before replying again." }, {
+        status: 429, headers: { "Cache-Control": "private, no-store" }
+      });
     }
     const sql = getDatabase();
     const messageId = "appmsg_" + randomUUID();
