@@ -1,10 +1,17 @@
 import { randomInt } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { batchUpdateSpreadsheet, getSpreadsheetMetadata, readValues } from "@/lib/integrations/google-sheets/client";
 import { can, currentAdmin } from "@/lib/owner/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function sameOrigin(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try { return new URL(origin).host === request.headers.get("host"); }
+  catch { return false; }
+}
 
 const EXISTING_TABS = [
   "01_REGISTRATIONS", "02_PHOTOGRAPHERS", "03_ADMINS", "04_GALLERY",
@@ -35,7 +42,13 @@ function sameHeaders(actual: string[], expected: readonly string[]): boolean {
   return actual.length === expected.length && expected.every((value, index) => actual[index] === value);
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") {
+    return NextResponse.json({ error: "Workbook migrations are restricted to Vercel Preview deployments.", code: "PREVIEW_ONLY" }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+  }
+  if (!sameOrigin(request)) {
+    return NextResponse.json({ error: "Same-origin request required.", code: "INVALID_ORIGIN" }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+  }
   const actor = await currentAdmin();
   if (!actor || !can(actor, "admins:manage")) {
     return NextResponse.json(
