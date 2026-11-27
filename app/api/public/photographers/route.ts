@@ -45,8 +45,30 @@ function safeImageUrl(input: string): string | null {
 
 export async function GET() {
   try {
-    const rows = await readValues(RANGE);
+    const [rows, serviceAreaRows] = await Promise.all([
+      readValues(RANGE),
+      readValues("'15_PHOTOGRAPHER_SERVICE_AREAS'!A1:Z2001")
+    ]);
     const headers = (rows[0] ?? []).map((item) => String(item ?? "").trim());
+    const serviceAreaHeaders = (serviceAreaRows[0] ?? []).map((item) => String(item ?? "").trim());
+    const requiredServiceAreaHeaders = ["photographer_id", "place_name", "county_region", "country", "active"];
+    if (requiredServiceAreaHeaders.some((header) => !serviceAreaHeaders.includes(header))) {
+      return NextResponse.json(
+        { error: "Photographer service-area data needs attention.", code: "PHOTOGRAPHER_SERVICE_AREA_SCHEMA_MISMATCH" },
+        { status: 503, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
+    const serviceAreasByPhotographer = new Map<string, string[]>();
+    for (const row of serviceAreaRows.slice(1)) {
+      const at = (key: string) => String(row[serviceAreaHeaders.indexOf(key)] ?? "").trim();
+      if (!["TRUE", "1", "YES", "ACTIVE"].includes(at("active").toUpperCase())) continue;
+      const photographerId = at("photographer_id");
+      const place = [at("place_name"), at("county_region"), at("country")].filter(Boolean).join(", ");
+      if (!photographerId || !place) continue;
+      const existing = serviceAreasByPhotographer.get(photographerId) ?? [];
+      if (!existing.includes(place)) existing.push(place);
+      serviceAreasByPhotographer.set(photographerId, existing);
+    }
     const missing = REQUIRED_HEADERS.filter((header) => !headers.includes(header));
     if (missing.length) {
       return NextResponse.json(
@@ -69,6 +91,7 @@ export async function GET() {
           bio: value(row, headers, "bio"),
           primaryLocation: value(row, headers, "primary_location"),
           categories: value(row, headers, "categories").split(/[;,]/).map((item) => item.trim()).filter(Boolean),
+          serviceAreas: serviceAreasByPhotographer.get(id) ?? [],
           profileImageUrl: safeImageUrl(value(row, headers, "profile_image_url")),
           heroImageUrl: safeImageUrl(value(row, headers, "hero_image_url"))
         };
