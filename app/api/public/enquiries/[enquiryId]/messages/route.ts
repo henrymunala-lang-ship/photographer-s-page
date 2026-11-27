@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { readValues } from "@/lib/integrations/google-sheets/client";
@@ -61,9 +61,21 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
     const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
     const body = typeof payload.body === "string" ? payload.body.trim() : "";
     if (body.length < 1 || body.length > 4000) return response({ error: "Messages must contain between 1 and 4,000 characters." }, 400);
+    const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : "";
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) return response({ error: "A valid message request key is required. Please refresh and try again." }, 400);
+    const payloadHash = createHash("sha256").update(body).digest("hex");
+    const sql = getDatabase();
+    const prior = await sql`SELECT message_id, sender_type, sender_name, body, created_at, payload_hash
+      FROM client_enquiry_messages
+      WHERE enquiry_id = ${id} AND sender_type = 'customer' AND idempotency_key = ${idempotencyKey}
+      LIMIT 1`;
+    if (prior.length) {
+      if (String(prior[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+      const { payload_hash: _hash, ...message } = prior[0];
+      return response({ ok: true, message, notification: "already_recorded", duplicate: true });
+    }
     const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
     if (await consumeMessageLimit(id, ip) > 30) return response({ error: "Too many messages have been sent. Please wait before replying again." }, 429);
-    const sql = getDatabase();
     const enquiryRows = await sql`SELECT customer_name, customer_email_hash, photographer_id, photographer_email, photographer_name
       FROM client_enquiries WHERE enquiry_id = ${id} LIMIT 1`;
     if (!enquiryRows.length) return response({ error: "Enquiry not found." }, 404);
@@ -85,9 +97,22 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
       } catch { /* message remains saved even if the optional email lookup is unavailable */ }
     }
     const inserted = await sql`INSERT INTO client_enquiry_messages
-      (message_id, enquiry_id, sender_type, sender_ref, sender_name, body)
-      VALUES (${"msg_" + randomUUID()}, ${id}, 'customer', ${String(enquiry.customer_email_hash)}, ${String(enquiry.customer_name)}, ${body})
+      (message_id, enquiry_id, sender_type, sender_ref, sender_name, body, idempotency_key, payload_hash)
+      VALUES (${"msg_" + randomUUID()}, ${id}, 'customer', ${String(enquiry.customer_email_hash)}, ${String(enquiry.customer_name)}, ${body}, ${idempotencyKey}, ${payloadHash})
+      ON CONFLICT DO NOTHING
       RETURNING message_id, sender_type, sender_name, body, created_at`;
+    if (!inserted.length) {
+      const duplicate = await sql`SELECT message_id, sender_type, sender_name, body, created_at, payload_hash
+        FROM client_enquiry_messages
+        WHERE enquiry_id = ${id} AND sender_type = 'customer' AND idempotency_key = ${idempotencyKey}
+        LIMIT 1`;
+      if (duplicate.length) {
+        if (String(duplicate[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+        const { payload_hash: _hash, ...message } = duplicate[0];
+        return response({ ok: true, message, notification: "already_recorded", duplicate: true });
+      }
+      return response({ error: "Your message could not be saved. Please try again." }, 503);
+    }
     const notification = photographerEmail
       ? await sendClientEnquiryEmail({
           to: photographerEmail,
