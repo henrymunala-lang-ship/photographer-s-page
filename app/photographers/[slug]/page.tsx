@@ -26,7 +26,7 @@ type GalleryItem = {
   featured: boolean;
   sortOrder: number;
 };
-type Service = { id: string; name: string; description: string; imageUrl: string | null };
+type Service = { id: string; name: string; description: string; priceAmount: string; currency: string; imageUrl: string | null };
 type ProfileResponse = {
   photographer: Profile;
   gallery: GalleryItem[];
@@ -152,10 +152,15 @@ export default function PublicPhotographerProfile() {
         <h2>Every story has<br/><em>its own rhythm.</em></h2>
         <p>{photographer.bio || "More about this photographer will be added here as their profile is completed."}</p>
         <div className="profile-section-head"><p className="kicker">SERVICES</p><span>02 — WHAT I OFFER</span></div>
-        {services.length ? <div className="profile-services">{services.map((service) => <div key={service.id}><CheckCircle2 size={16}/><span><strong>{service.name}</strong>{service.description && <small>{service.description}</small>}</span></div>)}</div> : <p>Published services have not been added yet.</p>}
+        {services.length ? <div className="profile-services">{services.map((service) => <div key={service.id}>
+          {service.imageUrl ? <img src={service.imageUrl} alt="" loading="lazy" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 6 }} /> : <CheckCircle2 size={16}/>}
+          <span><strong>{service.name}</strong>{service.description && <small>{service.description}</small>}
+          {service.priceAmount && Number.isFinite(Number(service.priceAmount)) && Number(service.priceAmount) > 0 && <small>From {service.currency ? service.currency + " " : ""}{Number(service.priceAmount).toLocaleString()}</small>}
+          <button className="button-outline" type="button" onClick={() => { setEnquiryOpen(true); setEnquirySuccess(""); setEnquiryError(""); }}>Enquire about this service <ArrowRight size={14}/></button>
+          </span></div>)}</div> : <div className="directory-empty"><h3>Services not listed yet</h3><p>This photographer has not published a service menu. You can still send an enquiry to ask about your photography needs.</p><button className="button-outline" type="button" onClick={() => { setEnquiryOpen(true); setEnquirySuccess(""); setEnquiryError(""); }}>Ask about a service <ArrowRight size={14}/></button></div>}
         <div className="profile-section-head"><p className="kicker">BASED HERE, AVAILABLE THERE</p><span>03 — LOCATION</span></div>
         <p className="profile-location"><MapPin size={15}/>{photographer.primaryLocation || "Location not specified"}</p>
-        {serviceAreas.length > 0 && <p className="profile-areas">ALSO AVAILABLE IN · {serviceAreas.join(" · ")}</p>}
+        {serviceAreas.length > 0 ? <div className="profile-areas"><strong>ALSO AVAILABLE IN</strong><p>{serviceAreas.join(" · ")}</p></div> : <div className="directory-empty"><h3>Additional service areas not specified</h3><p>Only the primary location is listed. Ask the photographer whether they can travel to your town, county or event venue.</p><button className="button-outline" type="button" onClick={() => { setEnquiryOpen(true); setEnquirySuccess(""); setEnquiryError(""); }}>Ask about travel availability <ArrowRight size={14}/></button></div>}
       </div>
       <aside className="profile-contact-card">
         <p className="kicker">START A CONVERSATION</p><h2>Have a story<br/>in mind?</h2>
