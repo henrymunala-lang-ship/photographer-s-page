@@ -255,7 +255,9 @@ export async function migrateApplicationDatabase() {
     if (!verified.has("application_messages_idempotency_idx") || !verified.has("client_enquiry_messages_idempotency_idx")) {
       throw new Error("Message idempotency index verification failed.");
     }
-    return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 16, indexesVerified: 2 };
+    const portal = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'client_portal_access_tokens' LIMIT 1`;
+    if (!portal.length) throw new Error('Client portal access table verification failed.');
+    return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 17, indexesVerified: 2 };
   }
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
@@ -275,6 +277,7 @@ export async function migrateApplicationDatabase() {
         'client_enquiries',
         'client_enquiry_messages',
         'client_enquiry_access_tokens',
+        'client_portal_access_tokens',
         'photographer_accounts',
         'photographer_applicant_accounts',
         'photographer_account_setup_tokens',
@@ -294,6 +297,7 @@ export async function migrateApplicationDatabase() {
     "client_enquiries",
     "client_enquiry_messages",
     "client_enquiry_access_tokens",
+    "client_portal_access_tokens",
     "photographer_accounts",
     "photographer_applicant_accounts",
     "photographer_account_setup_tokens",
