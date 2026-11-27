@@ -16,6 +16,9 @@ function sameOrigin(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") {
+    return NextResponse.json({ error: "Database migrations are restricted to Vercel Preview deployments.", code: "PREVIEW_ONLY" }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+  }
   const actor = await currentAdmin();
   if (!actor || !can(actor, "admins:manage")) {
     return NextResponse.json({ error: "Super Admin access required." }, {
