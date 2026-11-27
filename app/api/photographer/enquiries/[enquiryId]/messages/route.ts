@@ -107,7 +107,7 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
       to: String(enquiry.customer_email),
       subject: "Your photographer has replied — Lens & Light",
       greeting: String(enquiry.customer_name),
-      message: "Your photographer has sent a new message about your enquiry. Use this private link to read and reply. The link expires in 24 hours and can be used once.",
+      message: "New message from " + String(enquiry.photographer_name) + ":\n\n" + body.slice(0, 1200) + (body.length > 1200 ? "…" : "") + "\n\nOpen your private conversation using the secure link below. The link expires in 24 hours and can be used once.",
       actionLabel: "Read your private message",
       actionUrl: url
     });
