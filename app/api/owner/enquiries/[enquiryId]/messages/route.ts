@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin, can, appendAudit } from "@/lib/owner/admin-auth";
 import { getDatabase } from "@/lib/database/neon";
@@ -9,6 +9,23 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" };
 function response(body: unknown, status = 200) { return NextResponse.json(body, { status, headers: noStore }); }
+function messageRateKey(scope: string, identity: string) {
+  const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
+  if (secret.length < 32) throw new Error("Message rate limiting is not configured.");
+  return createHmac("sha256", secret).update("owner-enquiry-message:" + scope + ":" + identity).digest("hex");
+}
+async function consumeMessageLimit(scope: string, identity: string) {
+  const sql = getDatabase();
+  const key = messageRateKey(scope, identity);
+  const rows = await sql`INSERT INTO application_rate_limits (rate_key, window_started_at, request_count)
+    VALUES (${key}, now(), 1)
+    ON CONFLICT (rate_key) DO UPDATE SET
+      request_count = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN 1 ELSE application_rate_limits.request_count + 1 END,
+      window_started_at = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN now() ELSE application_rate_limits.window_started_at END,
+      updated_at = now()
+    RETURNING request_count`;
+  return Number(rows[0]?.request_count ?? 999);
+}
 function sameOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (!origin) return false;
@@ -41,6 +58,12 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
   if (!sameOrigin(request) || !request.headers.get("content-type")?.toLowerCase().includes("application/json")) return response({ error: "Invalid request." }, 403);
   try {
     const id = context.params.enquiryId;
+    const ip = request.headers.get("x-real-ip") || "unknown";
+    const [adminAttempts, ipAttempts] = await Promise.all([
+      consumeMessageLimit("admin", actor.adminId + ":enquiry:" + id),
+      consumeMessageLimit("ip", ip)
+    ]);
+    if (adminAttempts > 30 || ipAttempts > 60) return response({ error: "Too many messages have been sent. Please wait before replying again." }, 429);
     const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
     const body = typeof payload.body === "string" ? payload.body.trim() : "";
     if (body.length < 1 || body.length > 4000) return response({ error: "Messages must contain between 1 and 4,000 characters." }, 400);
