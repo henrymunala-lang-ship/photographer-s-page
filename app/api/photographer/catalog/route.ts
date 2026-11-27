@@ -150,6 +150,13 @@ export async function PUT(request: NextRequest) {
     if (updates.length) await batchUpdateValues(updates);
     if (newServices.length) await appendRows("'05_SERVICES'!A:Z", newServices);
     if (newAreas.length) await appendRows("'15_PHOTOGRAPHER_SERVICE_AREAS'!A:Z", newAreas);
+    if (updates.length || newServices.length || newAreas.length) {
+      await appendRows("'14_AUDIT_LOG'!A:I", [[
+        "audit_" + randomBytes(12).toString("hex"), "photographer", session.accountId,
+        "photographer.catalog.updated", "photographer", session.photographerId,
+        JSON.stringify({ servicesSaved: servicesIn.length, serviceAreasSaved: areasIn.length }), "", new Date().toISOString()
+      ]]);
+    }
     changed.push(...(updates.length || newServices.length ? ["services"] : []), ...(newAreas.length || updates.some(x => x.range.startsWith("'15_PHOTOGRAPHER_SERVICE_AREAS'")) ? ["serviceAreas"] : []));
     return reply({ ok: true, changed, servicesSaved: servicesIn.length, serviceAreasSaved: areasIn.length });
   } catch {
