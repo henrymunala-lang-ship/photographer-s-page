@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Send, ShieldCheck } from "lucide-react";
 import { PageSkeleton } from "@/components/page-skeleton";
 
@@ -20,6 +20,7 @@ export default function ApplicationUpdatesPage() {
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState("Checking your private application access…");
   const [ready, setReady] = useState(false);
+  const pendingMessageRequest = useRef<{ body: string; key: string } | null>(null);
 
   const loadMessages = useCallback(async () => {
     const response = await fetch("/api/public/applications/messages", { cache: "no-store" });
@@ -64,14 +65,18 @@ export default function ApplicationUpdatesPage() {
     if (!value || sending) return;
     setSending(true);
     setNotice("");
+    if (!pendingMessageRequest.current || pendingMessageRequest.current.body !== value) {
+      pendingMessageRequest.current = { body: value, key: crypto.randomUUID() };
+    }
     try {
       const response = await fetch("/api/public/applications/messages", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: value })
+        body: JSON.stringify({ body: value, idempotencyKey: pendingMessageRequest.current.key })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Your message could not be saved.");
+      pendingMessageRequest.current = null;
       setBody("");
       await loadMessages();
       setNotice(data.notification === "sent"
