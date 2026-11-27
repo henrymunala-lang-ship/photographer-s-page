@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       LIMIT 1`;
     if (prior.length) {
       if (String(prior[0].payload_hash) !== payloadHash) return NextResponse.json({ error: "This request key was already used for a different message." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
-      const { payload_hash: _hash, ...message } = prior[0];
+      const message = Object.fromEntries(Object.entries(prior[0]).filter(([key]) => key !== "payload_hash"));
       return NextResponse.json({ ok: true, message, notification: message.delivery_state, duplicate: true }, { headers: { "Cache-Control": "private, no-store" } });
     }
     const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         LIMIT 1`;
       if (duplicate.length) {
         if (String(duplicate[0].payload_hash) !== payloadHash) return NextResponse.json({ error: "This request key was already used for a different message." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
-        const { payload_hash: _hash, ...message } = duplicate[0];
+        const message = Object.fromEntries(Object.entries(duplicate[0]).filter(([key]) => key !== "payload_hash"));
         return NextResponse.json({ ok: true, message, notification: message.delivery_state, duplicate: true }, { headers: { "Cache-Control": "private, no-store" } });
       }
       return NextResponse.json({ error: "Please wait a moment before sending another message." }, {
