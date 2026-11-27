@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./marketplace.css";
+import { FeedbackProvider } from "@/components/feedback-provider";
 
 export const metadata: Metadata = {
-  title: "Lens & Light — Photography that tells your story",
-  description: "Thoughtful wedding, portrait and lifestyle photography. Explore the portfolio and enquire about your next session.",
+  title: "LENS & LIGHT — Make a shot, Keep memory",
+  description: "LENS & LIGHT — Make a shot, Keep memory. Discover photographers for the moments you want to remember.",
   keywords: ["photographer", "wedding photography", "portrait photography", "portfolio"],
   openGraph: {
-    title: "Lens & Light — Every frame tells a story",
-    description: "A considered collection of stories, people and places.",
+    title: "LENS & LIGHT — Make a shot, Keep memory",
+    description: "Make a shot, Keep memory. Photography for people, stories and places.",
     type: "website"
   }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="en"><body><FeedbackProvider>{children}</FeedbackProvider></body></html>;
 }

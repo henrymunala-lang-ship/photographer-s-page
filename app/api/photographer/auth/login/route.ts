@@ -1,0 +1,122 @@
+import { createHmac } from "node:crypto";
+import { NextRequest, NextResponse } from "next/server";
+import { getDatabase } from "@/lib/database/neon";
+import { readValues, batchUpdateValues } from "@/lib/integrations/google-sheets/client";
+import { readPhotographerRecord, verifyPhotographerPassword, photographerSessionCookie, photographerCookieOptions, PHOTOGRAPHER_COOKIE } from "@/lib/photographers/auth";
+import { createPhotographerApplicantSession, photographerApplicantCookieOptions, PHOTOGRAPHER_APPLICANT_COOKIE } from "@/lib/photographers/applicant-session";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+function sameOrigin(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try { return new URL(origin).host === request.headers.get("host"); } catch { return false; }
+}
+function noStore(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" } });
+}
+async function consumeLoginLimit(request: NextRequest,email:string) {
+  const secret = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
+  if (secret.length < 32) throw new Error("Login security is not configured.");
+  const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const sql = getDatabase();
+  async function consume(scope:string,identity:string) {
+    const key = createHmac("sha256", secret).update("photographer-login:"+scope+":"+identity).digest("hex");
+    const rows = await sql`INSERT INTO application_rate_limits (rate_key, window_started_at, request_count)
+      VALUES (${key}, now(), 1)
+      ON CONFLICT (rate_key) DO UPDATE SET
+        request_count = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN 1 ELSE application_rate_limits.request_count + 1 END,
+        window_started_at = CASE WHEN application_rate_limits.window_started_at < now() - interval '1 hour' THEN now() ELSE application_rate_limits.window_started_at END,
+        updated_at = now()
+      RETURNING request_count`;
+    return Number(rows[0]?.request_count ?? 999);
+  }
+  const [accountAttempts,ipAttempts] = await Promise.all([
+    consume("account",email),
+    consume("ip",ip)
+  ]);
+  return accountAttempts > 10 || ipAttempts > 40;
+}
+export async function POST(request: NextRequest) {
+  if (process.env.VERCEL_ENV !== "preview") return noStore({ error: "Photographer accounts are restricted to Preview deployments." }, 404);
+  if (!sameOrigin(request) || !request.headers.get("content-type")?.toLowerCase().includes("application/json")) return noStore({ error: "Invalid request." }, 403);
+  let stage = "parse_payload";
+  try {
+    const payload = await request.json();
+    const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase() : "";
+    const password = typeof payload?.password === "string" ? payload.password : "";
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || password.length > 128) {
+      return noStore({ error: "Enter your account email and password." }, 400);
+    }
+    stage = "rate_limit";
+    if (await consumeLoginLimit(request,email)) return noStore({ error: "Too many sign-in attempts. Please try again later." }, 429);
+    stage = "photographer_account_lookup";
+    const sql = getDatabase();
+    const rows = await sql`SELECT account_id, photographer_id, email, password_hash, account_state, session_version
+      FROM photographer_accounts WHERE lower(email) = ${email} LIMIT 1`;
+    if (rows.length && String(rows[0].account_state) === "active" && await verifyPhotographerPassword(password, String(rows[0].password_hash))) {
+      const accountId = String(rows[0].account_id), photographerId = String(rows[0].photographer_id);
+      stage = "photographer_sheet_record_lookup";
+      const record = await readPhotographerRecord(photographerId);
+      if (record && record.accountId === accountId && record.email === email) {
+        stage = "photographer_account_last_login_update";
+        await sql`UPDATE photographer_accounts SET last_login_at = now() WHERE account_id = ${accountId}`;
+        const response = noStore({ ok: true, pending: false });
+        response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId, photographerId, email, exp: Date.now() + 8 * 60 * 60 * 1000, sessionVersion: Number(rows[0].session_version ?? 1) }), photographerCookieOptions());
+        response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, "", { ...photographerApplicantCookieOptions(), maxAge: 0 });
+        return response;
+      }
+    }
+
+    stage = "applicant_account_lookup";
+    const applicants = await sql`SELECT a.account_id, a.registration_id, a.password_hash, a.account_state,
+        s.status, s.applicant_email
+      FROM photographer_applicant_accounts a
+      JOIN application_submissions s ON s.registration_id = a.registration_id
+      WHERE lower(a.email) = ${email} LIMIT 1`;
+    if (!applicants.length || !["active","converted"].includes(String(applicants[0].account_state)) ||
+        !await verifyPhotographerPassword(password, String(applicants[0].password_hash))) {
+      return noStore({ error: "Email or password is incorrect." }, 401);
+    }
+    const applicant = applicants[0];
+    if (!["pending","under_review","needs_information","approved"].includes(String(applicant.status))) {
+      return noStore({ error: "This application is no longer active. Contact Lens & Light for assistance." }, 403);
+    }
+    stage = "applicant_account_last_login_update";
+    await sql`UPDATE photographer_applicant_accounts SET last_login_at = now() WHERE account_id = ${String(applicant.account_id)}`;
+    if (String(applicant.status) === 'approved') {
+      stage = "approved_applicant_sheet_lookup";
+      const sheetRows = await readValues("'02_PHOTOGRAPHERS'!A1:P2001");
+      const headers = (sheetRows[0] ?? []).map(value => String(value ?? '').trim());
+      const expected = ['photographer_id','auth_user_id','registration_id','public_name','email','phone','bio','primary_location','categories','profile_image_url','hero_image_url','status','publish_state','membership_tier','created_at','updated_at'];
+      if (headers.length === expected.length && expected.every((header,index) => headers[index] === header)) {
+        const matches = sheetRows.slice(1).map((row,index)=>({row,rowNumber:index+2})).filter(item=>String(item.row[2] ?? '').trim() === String(applicant.registration_id));
+        if (matches.length === 1 && String(matches[0].row[11] ?? '').trim().toUpperCase() === 'APPROVED' &&
+            (!String(matches[0].row[1] ?? '').trim() || String(matches[0].row[1]).trim() === String(applicant.account_id))) {
+          const photographerId = String(matches[0].row[0] ?? '').trim();
+          stage = "approved_account_conversion";
+          await sql`INSERT INTO photographer_accounts (account_id, photographer_id, email, password_hash)
+            SELECT account_id, ${photographerId}, email, password_hash FROM photographer_applicant_accounts
+            WHERE account_id = ${String(applicant.account_id)} ON CONFLICT (account_id) DO NOTHING`;
+          stage = "approved_sheet_link_update";
+          await batchUpdateValues([{range: `'02_PHOTOGRAPHERS'!B${matches[0].rowNumber}`,values:[[String(applicant.account_id)]]},{range:`'02_PHOTOGRAPHERS'!P${matches[0].rowNumber}`,values:[[new Date().toISOString()]]}]);
+          const response = noStore({ ok: true, pending: false });
+          response.cookies.set(PHOTOGRAPHER_COOKIE, photographerSessionCookie({ accountId:String(applicant.account_id), photographerId, email, exp:Date.now()+8*60*60*1000, sessionVersion:1 }), photographerCookieOptions());
+          response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, '', {...photographerApplicantCookieOptions(),maxAge:0});
+          return response;
+        }
+      }
+    }
+    const response = noStore({ ok: true, pending: true, status: String(applicant.status) });
+    response.cookies.set(PHOTOGRAPHER_APPLICANT_COOKIE, createPhotographerApplicantSession({
+      accountId: String(applicant.account_id), registrationId: String(applicant.registration_id), exp: Date.now() + 8 * 60 * 60 * 1000
+    }), photographerApplicantCookieOptions());
+    return response;
+  } catch (error) {
+    const candidate = error as { name?: unknown; code?: unknown };
+    const errorName = typeof candidate?.name === "string" && /^[A-Za-z0-9_$]{1,40}$/.test(candidate.name) ? candidate.name : "UnknownError";
+    const errorCode = typeof candidate?.code === "string" && /^[A-Z0-9_]{1,32}$/.test(candidate.code) ? candidate.code : undefined;
+    console.error("[photographer-login] request failed", { stage, errorName, ...(errorCode ? { errorCode } : {}) });
+    return noStore({ error: "Photographer sign-in is temporarily unavailable." }, 503);
+  }
+}

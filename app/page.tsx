@@ -1,109 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowDown, ArrowRight, ArrowUpRight, Camera, Instagram, Menu, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
+import { ArrowRight, Camera, Heart, ShieldCheck, Sparkles, House, Mail, Phone, Instagram } from "lucide-react";
+type HomepagePhotographer = { id: string; slug: string; name: string; primaryLocation: string; categories: string[]; profileImageUrl: string | null; heroImageUrl: string | null; };
 
-const photos = [
-  { id: 1, category: "Weddings", title: "A day to remember", place: "The wedding story", src: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=85", shape: "tall" },
-  { id: 2, category: "Portraits", title: "Quiet confidence", place: "Portrait session", src: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85", shape: "wide" },
-  { id: 3, category: "Lifestyle", title: "In the golden light", place: "Lifestyle story", src: "https://images.unsplash.com/photo-1529636798458-92182e662485?auto=format&fit=crop&w=1000&q=85", shape: "wide" },
-  { id: 4, category: "Weddings", title: "The little moments", place: "Wedding details", src: "https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=1200&q=85", shape: "tall" },
-  { id: 5, category: "Commercial", title: "Form & feeling", place: "Creative direction", src: "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1000&q=85", shape: "wide" },
-  { id: 6, category: "Portraits", title: "A study in light", place: "Studio portrait", src: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=1000&q=85", shape: "wide" }
-];
 
-const categories = ["All work", "Weddings", "Portraits", "Lifestyle", "Commercial"];
-
-export default function Home() {
-  const [active, setActive] = useState("All work");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [selected, setSelected] = useState<number | null>(null);
-  const visiblePhotos = useMemo(() => active === "All work" ? photos : photos.filter((photo) => photo.category === active), [active]);
-  const currentPhoto = photos.find((photo) => photo.id === selected);
-
-  const closeMenu = () => setMenuOpen(false);
-
-  return (
-    <main>
-      <header className="site-header">
-        <a className="wordmark" href="#home" onClick={closeMenu} aria-label="Lens and Light home"><span className="wordmark-icon"><Camera size={18} strokeWidth={1.5} /></span><span>LENS <i>&</i> LIGHT</span></a>
-        <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close menu" : "Open menu"}>{menuOpen ? <X /> : <Menu />}</button>
-        <nav className={menuOpen ? "main-nav open" : "main-nav"} aria-label="Main navigation">
-          <a href="#work" onClick={closeMenu}>Selected work</a>
-          <a href="#about" onClick={closeMenu}>The approach</a>
-          <a href="#services" onClick={closeMenu}>Services</a>
-          <a className="nav-contact" href="#contact" onClick={closeMenu}>Let's talk <ArrowUpRight size={14} /></a>
-        </nav>
-      </header>
-
-      <section className="hero" id="home">
-        <div className="hero-copy">
-          <p className="eyebrow"><span className="eyebrow-line" /> INDEPENDENT PHOTOGRAPHER · NAIROBI & BEYOND</p>
-          <h1>Honest moments.<br /><em>Timeless stories.</em></h1>
-          <p className="hero-intro">Photographs with feeling, made to bring you back to the moments that matter most.</p>
-          <a className="text-link" href="#work">Explore the work <ArrowDown size={15} /></a>
-          <div className="hero-index"><span>01</span><span className="index-rule" /><span>04</span></div>
-        </div>
-        <div className="hero-image-wrap">
-          <img className="hero-image" src="https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=1800&q=90" alt="Couple sharing a quiet moment outdoors" />
-          <span className="image-note">THE ART OF REMEMBERING</span>
-        </div>
-        <div className="hero-bottom"><span>BASED IN NAIROBI, KENYA</span><span>AVAILABLE WORLDWIDE</span><span>SCROLL TO DISCOVER ↓</span></div>
-      </section>
-
-      <section className="intro section-pad">
-        <p className="eyebrow">A LITTLE ABOUT THE WORK</p>
-        <p className="intro-statement">The best photographs don't just show how a moment looked. They let you <em>feel how it felt.</em></p>
-        <div className="intro-foot"><span>OBSERVANT BY NATURE. INTENTIONAL BY DESIGN.</span><span>01 — 04</span></div>
-      </section>
-
-      <section className="work section-pad" id="work">
-        <div className="section-heading">
-          <div><p className="eyebrow">A CURATED COLLECTION</p><h2>Selected <em>work</em></h2></div>
-          <p className="section-aside">A few stories, people and places<br />seen through my lens.</p>
-        </div>
-        <div className="filters" role="group" aria-label="Filter portfolio">
-          {categories.map((category) => <button key={category} className={active === category ? "filter active" : "filter"} onClick={() => setActive(category)}>{category}</button>)}
-        </div>
-        <div className="gallery">
-          {visiblePhotos.map((photo, index) => <button className={`gallery-item ${photo.shape === "tall" ? "gallery-tall" : ""}`} key={photo.id} onClick={() => setSelected(photo.id)} aria-label={`View ${photo.title}`}>
-            <span className="gallery-image-wrap"><img src={photo.src} alt={photo.title} loading="lazy" /><span className="gallery-open"><ArrowUpRight size={19} /></span></span>
-            <span className="gallery-meta"><span><strong>{photo.title}</strong><small>{photo.place}</small></span><span className="gallery-number">0{index + 1}</span></span>
-          </button>)}
-        </div>
-        <p className="gallery-note">A photograph is only the beginning of the story.</p>
-      </section>
-
-      <section className="about section-pad" id="about">
-        <div className="about-image"><img src="https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=1200&q=85" alt="Photographer holding a camera" loading="lazy" /><span>BEHIND THE LENS</span></div>
-        <div className="about-copy"><p className="eyebrow">THE PERSON BEHIND THE CAMERA</p><h2>Present in the moment.<br /><em>Curious about everything.</em></h2><p>I believe the most meaningful images happen when you feel comfortable enough to be yourself. My approach is relaxed, thoughtful and rooted in noticing the details others might miss.</p><p>Whether it is a celebration, a portrait or a story for your brand, I want the photographs to feel unmistakably yours.</p><a className="text-link" href="#contact">A little more about working together <ArrowRight size={15} /></a></div>
-      </section>
-
-      <section className="services section-pad" id="services">
-        <div className="section-heading"><div><p className="eyebrow">WHAT I PHOTOGRAPH</p><h2>Made for <em>your story.</em></h2></div><p className="section-aside">Thoughtful imagery for people,<br />celebrations and growing brands.</p></div>
-        <div className="service-list">
-          {[
-            ["01", "Weddings & celebrations", "For the big feeling and the small in-between moments."],
-            ["02", "Portraits & people", "Honest portraits that feel like you, not a pose."],
-            ["03", "Lifestyle & editorial", "Atmospheric stories with a sense of place and personality."],
-            ["04", "Commercial & brand", "Distinctive imagery for businesses with something to say."]
-          ].map(([number, title, description]) => <div className="service-row" key={number}><span className="service-number">{number}</span><h3>{title}</h3><p>{description}</p><ArrowUpRight className="service-arrow" size={20} /></div>)}
-        </div>
-      </section>
-
-      <section className="quote-band"><span className="quote-mark">“</span><blockquote>Images that feel like <em>you.</em><br />Memories that stay with <em>you.</em></blockquote><span className="quote-credit">A PHOTOGRAPHY PHILOSOPHY</span></section>
-
-      <section className="contact section-pad" id="contact">
-        <div className="contact-top"><p className="eyebrow">YOUR STORY STARTS HERE</p><span>LET'S MAKE SOMETHING MEANINGFUL</span></div>
-        <h2>Have a moment<br />worth <em>remembering?</em></h2>
-        <p className="contact-intro">Tell me what you have in mind. I'd love to hear about it.</p>
-        <a className="contact-button" href="https://wa.me/254700000000?text=Hello%2C%20I%20found%20your%20portfolio%20on%20Lens%20%26%20Light%20and%20would%20love%20to%20enquire%20about%20a%20photoshoot." target="_blank" rel="noreferrer">ENQUIRE ABOUT A SESSION <ArrowUpRight size={17} /></a>
-        <div className="contact-details"><span>NAIROBI, KENYA · AVAILABLE WORLDWIDE</span><a href="mailto:hello@lensandlight.example">HELLO@LENSANDLIGHT.EXAMPLE</a></div>
-      </section>
-
-      <footer className="site-footer"><a className="wordmark footer-wordmark" href="#home">LENS <i>&</i> LIGHT</a><span>PHOTOGRAPHY WITH FEELING.</span><div className="footer-links"><a href="#work">WORK</a><a href="#about">ABOUT</a><a href="#contact">CONTACT</a><a href="https://instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram"><Instagram size={16} /></a></div><small>© {new Date().getFullYear()} LENS & LIGHT. ALL RIGHTS RESERVED.</small></footer>
-
-      {currentPhoto && <div className="lightbox" role="dialog" aria-modal="true" aria-label={currentPhoto.title} onClick={() => setSelected(null)}><button className="lightbox-close" onClick={() => setSelected(null)} aria-label="Close image"><X /></button><img src={currentPhoto.src} alt={currentPhoto.title} onClick={(event) => event.stopPropagation()} /><p>{currentPhoto.title} <span>— {currentPhoto.category}</span></p></div>}
-    </main>
-  );
-}
+export default function Home(){
+const [photographers, setPhotographers] = useState<HomepagePhotographer[]>([]);
+useEffect(() => {
+  let active = true;
+  const loadPhotographers = async () => {
+    try {
+      const response = await fetch("/api/public/photographers", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json() as { photographers?: HomepagePhotographer[] };
+      if (active && Array.isArray(data.photographers)) setPhotographers(data.photographers);
+    } catch {
+      // Keep the most recently loaded public profiles visible if the network is temporarily unavailable.
+    }
+  };
+  void loadPhotographers();
+  const interval = window.setInterval(() => void loadPhotographers(), 15000);
+  const refreshOnFocus = () => { if (document.visibilityState === "visible") void loadPhotographers(); };
+  window.addEventListener("focus", refreshOnFocus);
+  document.addEventListener("visibilitychange", refreshOnFocus);
+  return () => {
+    active = false;
+    window.clearInterval(interval);
+    window.removeEventListener("focus", refreshOnFocus);
+    document.removeEventListener("visibilitychange", refreshOnFocus);
+  };
+}, []);
+const leadPhotographer = photographers[0];
+const leadImage = leadPhotographer?.heroImageUrl || leadPhotographer?.profileImageUrl;
+const secondaryPhotographer = photographers[1] || leadPhotographer;
+const secondaryImage = secondaryPhotographer?.heroImageUrl || secondaryPhotographer?.profileImageUrl;
+return <main className="market"><header className="market-header"><Link href="/" className="market-brand"><span className="brand-mark"><Camera size={21} strokeWidth={2.5}/></span><span className="brand-wordmark"><strong>LENS &amp; LIGHT</strong><small>MAKE A SHOT, KEEP MEMORY</small></span></Link><nav className="desktop-site-nav"><Link href="/" className="home-nav-link" aria-current="page"><House size={13}/> Home</Link><Link href="/photographers">Find a photographer</Link><Link href="/my-conversations">My conversations</Link><Link href="/contact" className="contact-nav-link">Contact</Link><a href="#how-it-works">How it works</a><a href="#for-photographers">For photographers</a></nav><details className="mobile-site-menu"><summary aria-label="Open navigation menu"><Menu size={23} strokeWidth={2.4} aria-hidden="true"/></summary><nav><Link href="/" aria-current="page">Home</Link><Link href="/photographers">Find a photographer</Link><Link href="/my-conversations">My conversations</Link><Link href="/contact">Contact</Link><a href="#how-it-works">How it works</a><a href="#for-photographers">For photographers</a></nav></details><Link className="header-cta" href="/photographers">Explore photographers <ArrowRight size={15}/></Link></header>
+<section className="market-hero"><div className="market-hero-copy"><p className="kicker"><span/> A HOME FOR PHOTOGRAPHY & THE PEOPLE BEHIND IT</p><h1>Find the eyes<br/>behind <em>your story.</em></h1><p className="hero-description">Discover thoughtful photographers for the moments, milestones and ideas you want to remember.</p><div className="hero-actions"><Link className="button-dark" href="/photographers">Find your photographer <ArrowRight size={16}/></Link><a className="button-text" href="#how-it-works">Discover how it works <span>↓</span></a></div><div className="hero-proof"><span><ShieldCheck size={16}/> Curated photographer profiles</span><span><Heart size={15}/> Genuine work, real stories</span></div></div><div className="market-hero-visual">{leadImage ? <img src={leadImage} alt={leadPhotographer ? `Photography by ${leadPhotographer.name}` : "Featured photographer work"}/> : <div className="homepage-photo-empty">Photographer images will appear here when profiles are published.</div>}<div className="hero-image-caption"><span>{leadPhotographer ? `FEATURED WORK · ${leadPhotographer.name.toUpperCase()}` : "THE ART OF REMEMBERING"}</span><span>LIVE PORTFOLIO</span></div><div className="floating-note"><Sparkles size={15}/><span>Fresh work from our photographers</span></div></div></section>
+<section className="market-categories"><div className="section-topline"><p className="kicker">A GOOD PLACE TO BEGIN</p><span>01 — EXPLORE</span></div><div className="section-title-row"><h2>Meet the people<br/><em>behind the images.</em></h2><p>Explore the latest work shared by approved Lens & Light photographers. Profile image changes appear here automatically.</p></div><div className="category-grid">{photographers.length ? photographers.map((photographer,i)=>{const image=photographer.profileImageUrl||photographer.heroImageUrl;return <Link className="category-card" href={`/photographers/${photographer.slug}`} key={photographer.id}><div className="category-image">{image ? <img src={image} alt={`Photography by ${photographer.name}`} loading="lazy"/> : <div className="homepage-photo-empty"/>}<span>{String(i+1).padStart(2,"0")}</span><b><ArrowRight size={18}/></b></div><h3>{photographer.name}</h3><p>{photographer.categories.join(" · ") || photographer.primaryLocation || "Photographer"}</p></Link>}) : <div className="homepage-photo-empty">Approved and published photographer portfolios will appear here.</div>}</div></section>
+<section className="how-section" id="how-it-works"><div className="how-image">{secondaryImage ? <img src={secondaryImage} alt={secondaryPhotographer ? `Recent work by ${secondaryPhotographer.name}` : "Photographer portfolio image"}/> : <div className="homepage-photo-empty">Photographer work will appear here.</div>}</div><div className="how-copy"><p className="kicker">A MORE PERSONAL WAY TO FIND YOUR PHOTOGRAPHER</p><h2>Good work.<br/><em>Good people.</em><br/>A great fit.</h2>{[["01","Explore the work","Browse portfolios, styles and the services photographers offer."],["02","Find your fit","Compare experience, location and the kind of stories they love to tell."],["03","Start a conversation","Contact a photographer directly and tell them what you have in mind."]].map(([n,t,d])=><div className="how-step" key={n}><span>{n}</span><div><h3>{t}</h3><p>{d}</p></div></div>)}<Link className="button-dark" href="/photographers">Meet the photographers <ArrowRight size={16}/></Link></div></section>
+<section className="join-section" id="for-photographers"><div><p className="kicker">FOR THE PEOPLE BEHIND THE CAMERA</p><h2>Your work deserves<br/><em>to be discovered.</em></h2></div><div><p>Build a home for your photography, share the work you’re proud of and connect with people looking for your perspective.</p><Link className="button-light" href="/photographers/apply">Become a photographer <ArrowRight size={16}/></Link></div></section>
+<footer className="market-footer" id="contact"><div className="footer-signature"><span className="footer-company">BLACK HYPHEN TECHNOLOGIES</span><strong>SHOOT FOR MEMORY</strong><span className="footer-super-admin">CONTACT INFORMATION</span></div><div className="footer-links"><Link href="/photographers">DISCOVER</Link><Link href="/my-conversations">MY CONVERSATIONS</Link><a href="#for-photographers">JOIN US</a><Link href="/contact">CONTACT</Link></div><div className="footer-social" aria-label="Contact links"><a href="tel:0711205316" aria-label="Call Lens and Light" title="Call 0711205316"><Phone size={16}/></a><a href="mailto:henrymunala2@gmail.com" aria-label="Email Lens and Light" title="Email"><Mail size={16}/></a><a href="https://www.instagram.com/kynekenya/" target="_blank" rel="noreferrer" aria-label="Instagram" title="Instagram"><Instagram size={16}/></a></div><small>© {new Date().getFullYear()} LENS &amp; LIGHT. ALL RIGHTS RESERVED.</small></footer></main>}
