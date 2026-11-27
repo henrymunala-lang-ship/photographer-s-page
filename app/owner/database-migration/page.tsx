@@ -47,13 +47,13 @@ export default function DatabaseMigrationPage() {
     <main className="owner-shell" style={{ maxWidth: 760, margin: "0 auto", padding: "32px 20px" }}>
       <a href="/owner" style={{ display: "inline-block", marginBottom: 24 }}>← Back to Owner Workspace</a>
       <h1>Preview database maintenance</h1>
-      <p>Run the pending additive application-database migration required by photographer sign-in.</p>
+      <p>Run the pending additive application-database migration required by the client portal and enquiry messaging.</p>
       <section style={{ border: "1px solid var(--border, #d1d5db)", borderRadius: 12, padding: 20, margin: "24px 0" }}>
         <h2>What this action does</h2>
         <ul>
           <li>Applies the pending Preview application-storage schema migration.</li>
-          <li>Adds the missing photographer session-version column if it is not present.</li>
-          <li>Verifies the application database tables and message idempotency indexes.</li>
+          <li>Creates the secure client-portal token table and verifies the enquiry messaging schema.</li>
+          <li>Verifies the application database tables and message idempotency indexes, including client portal access storage.</li>
         </ul>
         <h2>What it does not do</h2>
         <ul>
@@ -74,7 +74,7 @@ export default function DatabaseMigrationPage() {
               <p>Schema version: <strong>{result.version}</strong></p>
               <p>Application tables verified: <strong>{result.tablesVerified}</strong></p>
               <p>Message idempotency indexes verified: <strong>{result.indexesVerified ?? "Not reported by this deployment"}</strong></p>
-              <p>You can now retry photographer sign-in.</p>
+              <p>The client portal schema is ready for Preview testing.</p>
             </>
           ) : (
             <>
