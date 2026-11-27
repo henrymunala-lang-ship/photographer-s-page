@@ -118,7 +118,7 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
           to: photographerEmail,
           subject: "New message from a Lens & Light client",
           greeting: String(enquiry.photographer_name),
-          message: "A customer has replied in a private enquiry conversation. Sign in to your photographer workspace to respond.",
+          message: "New message from " + String(enquiry.customer_name) + ":\n\n" + body.slice(0, 1200) + (body.length > 1200 ? "…" : "") + "\n\nSign in to your photographer workspace to read and reply.",
           actionLabel: "Open photographer workspace",
           actionUrl: request.nextUrl.origin + "/photographer"
         })
