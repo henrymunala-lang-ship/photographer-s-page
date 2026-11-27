@@ -58,7 +58,7 @@ const statements = [
   `ALTER TABLE application_messages ADD COLUMN IF NOT EXISTS idempotency_key text`,
   `ALTER TABLE application_messages ADD COLUMN IF NOT EXISTS payload_hash char(64)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS application_messages_idempotency_idx
-    ON application_messages (registration_id, sender_type, idempotency_key)
+    ON application_messages (registration_id, sender_type, sender_ref, idempotency_key)
     WHERE idempotency_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS application_messages_thread_idx
     ON application_messages (registration_id, created_at, message_id)`,
@@ -202,7 +202,7 @@ const statements = [
   `ALTER TABLE client_enquiry_messages ADD COLUMN IF NOT EXISTS idempotency_key text`,
   `ALTER TABLE client_enquiry_messages ADD COLUMN IF NOT EXISTS payload_hash char(64)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS client_enquiry_messages_idempotency_idx
-    ON client_enquiry_messages (enquiry_id, sender_type, idempotency_key)
+    ON client_enquiry_messages (enquiry_id, sender_type, sender_ref, idempotency_key)
     WHERE idempotency_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS client_enquiry_messages_thread_idx
     ON client_enquiry_messages (enquiry_id, created_at, message_id)`,
@@ -235,7 +235,16 @@ const statements = [
 export async function migrateApplicationDatabase() {
   const sql = getDatabase();
   const applied = await sql`SELECT version FROM lens_light_schema_migrations WHERE version = ${APPLICATION_SCHEMA_VERSION} LIMIT 1`;
-  if (applied.length) return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 16 };
+  if (applied.length) {
+    const indexes = await sql`SELECT indexname FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND indexname = ANY(ARRAY['application_messages_idempotency_idx','client_enquiry_messages_idempotency_idx'])`;
+    const verified = new Set(indexes.map((row) => String(row.indexname)));
+    if (!verified.has("application_messages_idempotency_idx") || !verified.has("client_enquiry_messages_idempotency_idx")) {
+      throw new Error("Message idempotency index verification failed.");
+    }
+    return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: 16, indexesVerified: 2 };
+  }
   const queries = statements.map((statement) => sql.query(statement, []));
   await sql.transaction(queries);
   await sql`INSERT INTO lens_light_schema_migrations (version)
@@ -281,5 +290,12 @@ export async function migrateApplicationDatabase() {
   ];
   const missing = expected.filter((table) => !found.has(table));
   if (missing.length) throw new Error("Application database schema verification failed.");
-  return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: expected.length };
+  const indexes = await sql`SELECT indexname FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND indexname = ANY(ARRAY['application_messages_idempotency_idx','client_enquiry_messages_idempotency_idx'])`;
+  const verifiedIndexes = new Set(indexes.map((row) => String(row.indexname)));
+  if (!verifiedIndexes.has("application_messages_idempotency_idx") || !verifiedIndexes.has("client_enquiry_messages_idempotency_idx")) {
+    throw new Error("Message idempotency index verification failed.");
+  }
+  return { version: APPLICATION_SCHEMA_VERSION, tablesVerified: expected.length, indexesVerified: 2 };
 }
