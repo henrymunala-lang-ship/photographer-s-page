@@ -44,6 +44,8 @@ type Draft={publicName:string;bio:string;location:string;categories:string};
 type Photo={id:string;title:string;caption:string;imageUrl:string;altText:string;category:string;sortOrder:number;publishState:string};
 type Stage={kind:"profile"|"hero"|"gallery"|"gallery-edit";file:File;url:string;x:number;y:number};
 type PhotoEdit={id:string;title:string;caption:string;category:string;altText:string};
+type ServiceDraft={id:string;name:string;description:string;priceAmount:string;currency:string};
+type AreaDraft={id:string;placeName:string;countyRegion:string;country:string};
 type ClientEnquiry={enquiry_id:string;customer_name:string;customer_email:string;customer_phone:string;event_type:string;event_date:string|null;event_location:string;message:string;status:string;customer_notification_state:string;photographer_notification_state:string;created_at:string};
 const blank:Draft={publicName:"",bio:"",location:"",categories:""};
 
@@ -71,12 +73,18 @@ function makeCrop(file:File,aspect:number,x:number,y:number):Promise<File>{
 export default function PhotographerPortal(){
  const { notify, confirm } = useFeedback();
  const [profile,setProfile]=useState<Profile|null>(null),[draft,setDraft]=useState<Draft>(blank),[gallery,setGallery]=useState<Photo[]>([]);
+ const [services,setServices]=useState<ServiceDraft[]>([]),[serviceAreas,setServiceAreas]=useState<AreaDraft[]>([]),[catalogSaving,setCatalogSaving]=useState(false),[catalogMessage,setCatalogMessage]=useState("");
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[busy,setBusy]=useState(false),[stageBusy,setStageBusy]=useState(false);
  const [stage,setStage]=useState<Stage|null>(null),[error,setError]=useState(""),[message,setMessage]=useState(""),[galleryMessage,setGalleryMessage]=useState("");
  const [file,setFile]=useState<File|null>(null),[fileUrl,setFileUrl]=useState(""),[title,setTitle]=useState(""),[caption,setCaption]=useState(""),[category,setCategory]=useState("");
  const [editing,setEditing]=useState<PhotoEdit|null>(null),[editFile,setEditFile]=useState<File|null>(null),[editMessage,setEditMessage]=useState("");
  const [enquiries,setEnquiries]=useState<ClientEnquiry[]>([]),[enquiriesLoading,setEnquiriesLoading]=useState(false),[enquiriesError,setEnquiriesError]=useState(""),[enquiryBusy,setEnquiryBusy]=useState<string|null>(null);
 
+ async function loadCatalog(){
+  const r=await fetch("/api/photographer/catalog",{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.error||"Services and service areas could not be loaded.");
+  setServices(Array.isArray(d.services)?d.services:[]);setServiceAreas(Array.isArray(d.serviceAreas)?d.serviceAreas:[]);
+ }
  async function loadGallery(){
   const r=await fetch("/api/photographer/gallery",{cache:"no-store"}),d=await r.json();
   if(!r.ok)throw new Error(d.error||"Portfolio gallery could not be loaded.");
@@ -88,7 +96,7 @@ export default function PhotographerPortal(){
    const r=await fetch("/api/photographer/profile",{cache:"no-store"}),d=await r.json();
    if(!r.ok)throw new Error(d.error||"Your profile could not be loaded.");
    const p=d.photographer as Profile;setProfile(p);setDraft({publicName:p.name,bio:p.bio,location:p.location,categories:p.categories.join(", ")});
-   await loadGallery();
+   await Promise.all([loadGallery(),loadCatalog()]);
   }catch(e){setError(e instanceof Error?e.message:"Your workspace could not be loaded.");}
   finally{setLoading(false);}
  }
@@ -124,6 +132,25 @@ export default function PhotographerPortal(){
    setStage(null);
   }catch(e){setError(e instanceof Error?e.message:"Image could not be saved.");}
   finally{setStageBusy(false);}
+ }
+ async function saveCatalog(e:React.FormEvent){
+  e.preventDefault();if(catalogSaving)return;setCatalogSaving(true);setCatalogMessage("");
+  try{
+   const r=await fetch("/api/photographer/catalog",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({services,serviceAreas})}),d=await r.json();
+   if(!r.ok)throw new Error(d.error||"Services and service areas could not be saved.");
+   const refreshed=await fetch("/api/photographer/catalog",{cache:"no-store"}),data=await refreshed.json();
+   if(!refreshed.ok)throw new Error(data.error||"Saved, but the updated catalogue could not be reloaded.");
+   setServices(Array.isArray(data.services)?data.services:[]);setServiceAreas(Array.isArray(data.serviceAreas)?data.serviceAreas:[]);
+   setCatalogMessage("Your services and service areas have been saved. Published details now appear on your public profile.");
+   notify("Your services and service areas have been saved.","success","Catalogue updated");
+  }catch(e){setCatalogMessage(e instanceof Error?e.message:"Services and service areas could not be saved.");}
+  finally{setCatalogSaving(false);}
+ }
+ function updateService(index:number,key:keyof ServiceDraft,value:string){
+  setServices(items=>items.map((item,i)=>i===index?{...item,[key]:value}:item));
+ }
+ function updateArea(index:number,key:keyof AreaDraft,value:string){
+  setServiceAreas(items=>items.map((item,i)=>i===index?{...item,[key]:value}:item));
  }
  async function saveDetails(e:React.FormEvent){
   e.preventDefault();if(!profile||saving)return;setSaving(true);setError("");setMessage("");
@@ -194,7 +221,21 @@ export default function PhotographerPortal(){
      </form>
     </section>
     <section style={{...panel,marginTop:18}}>
-      <p style={kicker}>02 — CLIENT ENQUIRIES</p><h2 style={sectionTitle}>People interested in your work</h2>
+     <p style={kicker}>02 — SERVICES & SERVICE AREAS</p><h2 style={sectionTitle}>Set your services, prices and coverage</h2>
+     <p style={intro}>You decide what you offer, what you charge and where you are available. Update these details whenever demand, seasons, travel costs or your location changes. Saving publishes your active listings; removing an item takes it off your public profile.</p>
+     <form onSubmit={saveCatalog}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:20}}><h3 style={subTitle}>Your services ({services.length})</h3><button type="button" style={secondary} onClick={()=>setServices(v=>[...v,{id:"",name:"",description:"",priceAmount:"",currency:""}])}>+ Add a service</button></div>
+      {services.length===0?<div style={emptyGallery}>No services listed yet. Add the photography services you currently offer.</div>:<div style={{display:"grid",gap:12}}>{services.map((item,i)=><article key={item.id||"new-service-"+i} style={{border:"1px solid #dedbd3",padding:14,background:"#fff"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><strong style={{fontSize:13}}>Service {i+1}</strong><button type="button" style={remove} onClick={()=>setServices(v=>v.filter((_,index)=>index!==i))}>Remove</button></div><div style={{...grid,marginTop:12}}><label style={label}>Service name<input style={input} value={item.name} maxLength={120} onChange={e=>updateService(i,"name",e.target.value)} placeholder="e.g. Wedding photography"/></label><label style={label}>Starting price (optional)<input style={input} type="number" min="0" step="0.01" value={item.priceAmount} onChange={e=>updateService(i,"priceAmount",e.target.value)} placeholder="Leave blank for quote"/></label><label style={label}>Currency<input style={input} value={item.currency} maxLength={8} onChange={e=>updateService(i,"currency",e.target.value.toUpperCase())} placeholder="e.g. KES"/></label><label style={{...label,gridColumn:"1 / -1"}}>Description<textarea style={{...input,minHeight:70}} value={item.description} maxLength={1000} onChange={e=>updateService(i,"description",e.target.value)} placeholder="What is included? Any packages or conditions?"/></label></div></article>)}</div>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginTop:24}}><h3 style={subTitle}>Where you work ({serviceAreas.length})</h3><button type="button" style={secondary} onClick={()=>setServiceAreas(v=>[...v,{id:"",placeName:"",countyRegion:"",country:""}])}>+ Add an area</button></div>
+      <p style={note}>Your primary location is managed in Profile Details above. Add other towns, counties or countries where you accept bookings.</p>
+      {serviceAreas.length===0?<div style={emptyGallery}>No additional service areas listed. Add the places you are willing to travel to or work in.</div>:<div style={{display:"grid",gap:10}}>{serviceAreas.map((item,i)=><article key={item.id||"new-area-"+i} style={{border:"1px solid #dedbd3",padding:14,background:"#fff"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><strong style={{fontSize:13}}>Area {i+1}</strong><button type="button" style={remove} onClick={()=>setServiceAreas(v=>v.filter((_,index)=>index!==i))}>Remove</button></div><div style={{...grid,marginTop:12}}><label style={label}>Town / place<input style={input} value={item.placeName} maxLength={120} onChange={e=>updateArea(i,"placeName",e.target.value)} placeholder="e.g. Kerugoya"/></label><label style={label}>County / region<input style={input} value={item.countyRegion} maxLength={120} onChange={e=>updateArea(i,"countyRegion",e.target.value)} placeholder="e.g. Kirinyaga County"/></label><label style={label}>Country<input style={input} value={item.country} maxLength={80} onChange={e=>updateArea(i,"country",e.target.value)} placeholder="e.g. Kenya"/></label></div></article>)}</div>}
+      {catalogMessage&&<p role="status" style={{...note,marginTop:14}}>{catalogMessage}</p>}
+      <button disabled={catalogSaving} style={{...primary,marginTop:18}}>{catalogSaving?"Saving services & areas…":"Save services & service areas"}</button>
+      <p style={note}>Only your own service and service-area records can be changed here. Profile approval and publication controls remain with Lens & Light administration.</p>
+     </form>
+    </section>
+    <section style={{...panel,marginTop:18}}>
+      <p style={kicker}>03 — CLIENT ENQUIRIES</p><h2 style={sectionTitle}>People interested in your work</h2>
       <p style={intro}>Customer requests sent from your published profile are private to you and authorised Lens & Light support administrators. Reply to customers privately here, or use the contact details for direct follow-up.</p>
       {enquiriesLoading?<p style={note}>Loading your enquiries…</p>:enquiriesError?<p role="alert" style={note}>{enquiriesError}</p>:enquiries.length===0?<div style={emptyGallery}>No customer enquiries yet. New requests from your public profile will appear here.</div>:<div style={{display:"grid",gap:12,marginTop:16}}>{enquiries.map(item=><article key={item.enquiry_id} style={{border:"1px solid #dedbd3",background:"#fff",padding:15}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{item.customer_name}</strong><p style={note}>{item.event_type} · {item.event_location}{item.event_date?" · "+item.event_date:""}</p></div><select aria-label={"Enquiry status for "+item.customer_name} style={input} value={item.status} disabled={enquiryBusy===item.enquiry_id} onChange={e=>void updateEnquiryStatus(item.enquiry_id,e.target.value)}><option value="new">New</option><option value="in_progress">In progress</option><option value="responded">Responded</option><option value="closed">Closed</option></select></div><p style={{fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",color:"#514d45"}}>{item.message}</p><div style={{display:"flex",gap:14,flexWrap:"wrap"}}><a href={"mailto:"+item.customer_email} style={{...note,color:"#78654d"}}>{item.customer_email}</a><a href={"tel:"+item.customer_phone.replace(/[^+\d]/g,"")} style={{...note,color:"#78654d"}}>{item.customer_phone}</a></div><small style={{...note,fontSize:10}}>Email delivery · Your alert: {item.photographer_notification_state||"pending"} · Customer: {item.customer_notification_state||"pending"}</small><small style={{...note,fontSize:9}}>{new Date(item.created_at).toLocaleString("en-KE")}</small><ClientEnquiryThread enquiryId={item.enquiry_id} audience="photographer"/></article>)}</div>}
      </section>
@@ -208,7 +249,7 @@ export default function PhotographerPortal(){
      <p style={note}>JPG, PNG or WebP · Maximum 8 MB. The new photo is uploaded only after you confirm the crop.</p>
     </section>
     <section style={{...panel,marginTop:18}}>
-     <p style={kicker}>04 — MY PORTFOLIO</p><h2 style={sectionTitle}>Build your gallery</h2>
+     <p style={kicker}>05 — MY PORTFOLIO</p><h2 style={sectionTitle}>Build your gallery</h2>
      <p style={intro}>Add examples of your work. New photographs remain private until a Lens & Light administrator approves them.</p>
      <div style={grid}>
       <label style={label}>Photo title<input style={input} value={title} onChange={e=>setTitle(e.target.value)} maxLength={120} placeholder="e.g. Golden-hour portrait"/></label>
