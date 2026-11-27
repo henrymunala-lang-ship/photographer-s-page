@@ -15,8 +15,13 @@ export async function sendClientEnquiryEmail(input: {
   actionUrl: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
   const isPreview = process.env.VERCEL_ENV === "preview";
+  // Preview uses Resend’s verified test sender and redirects every notification
+  // to the explicitly configured test inbox. A custom domain is not required.
+  // Production must provide its own verified sender identity.
+  const from = isPreview
+    ? "Lens & Light <onboarding@resend.dev>"
+    : process.env.RESEND_FROM_EMAIL;
   // Preview must never send test notifications to real customer/photographer addresses.
   // Configure RESEND_TEST_TO_EMAIL with the verified Resend test recipient.
   const recipient = isPreview ? process.env.RESEND_TEST_TO_EMAIL : input.to;
