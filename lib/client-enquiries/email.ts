@@ -16,8 +16,18 @@ export async function sendClientEnquiryEmail(input: {
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !from || !input.to) {
-    return { state: "pending" as const, reason: !apiKey ? "provider_not_configured" as const : "verified_sender_required" as const };
+  const isPreview = process.env.VERCEL_ENV === "preview";
+  // Preview must never send test notifications to real customer/photographer addresses.
+  // Configure RESEND_TEST_TO_EMAIL with the verified Resend test recipient.
+  const recipient = isPreview ? process.env.RESEND_TEST_TO_EMAIL : input.to;
+  if (!apiKey || !from || !recipient) {
+    return {
+      state: "pending" as const,
+      reason: !apiKey ? "provider_not_configured" as const
+        : !from ? "verified_sender_required" as const
+        : isPreview ? "preview_test_recipient_required" as const
+        : "verified_sender_required" as const
+    };
   }
   const safeGreeting = escapeHtml(input.greeting || "there");
   const safeMessage = escapeHtml(input.message).replace(/\n/g, "<br>");
@@ -29,7 +39,7 @@ export async function sendClientEnquiryEmail(input: {
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from,
-        to: [input.to],
+        to: [recipient],
         subject: input.subject,
         text: `Hello ${input.greeting || "there"},\n\n${input.message}\n\n${input.actionLabel}: ${input.actionUrl}\n\nLens & Light`,
         html: `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#292821;max-width:600px;margin:auto"><p>Hello ${safeGreeting},</p><p>${safeMessage}</p><p><a href="${safeUrl}" style="display:inline-block;padding:12px 18px;background:#292821;color:#fff;text-decoration:none;border-radius:4px">${safeAction}</a></p><p style="color:#777064;font-size:12px">Lens &amp; Light · Private client communication</p></div>`
