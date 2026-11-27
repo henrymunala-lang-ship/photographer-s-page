@@ -6,6 +6,7 @@ type MigrationResult = {
   ok?: boolean;
   version?: string;
   tablesVerified?: number;
+  indexesVerified?: number;
   error?: string;
   code?: string;
 };
@@ -52,7 +53,7 @@ export default function DatabaseMigrationPage() {
         <ul>
           <li>Applies the pending Preview application-storage schema migration.</li>
           <li>Adds the missing photographer session-version column if it is not present.</li>
-          <li>Verifies the application database tables after the migration.</li>
+          <li>Verifies the application database tables and message idempotency indexes.</li>
         </ul>
         <h2>What it does not do</h2>
         <ul>
@@ -72,6 +73,7 @@ export default function DatabaseMigrationPage() {
               <h2>Database migration verified</h2>
               <p>Schema version: <strong>{result.version}</strong></p>
               <p>Application tables verified: <strong>{result.tablesVerified}</strong></p>
+              <p>Message idempotency indexes verified: <strong>{result.indexesVerified ?? "Not reported by this deployment"}</strong></p>
               <p>You can now retry photographer sign-in.</p>
             </>
           ) : (
