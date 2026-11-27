@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { currentAdmin, can, appendAudit } from "@/lib/owner/admin-auth";
 import { getDatabase } from "@/lib/database/neon";
@@ -72,7 +72,20 @@ export async function POST(
     const payload = await request.json();
     const body = typeof payload?.body === "string" ? payload.body.trim() : "";
     if (!body || body.length > 4000) return NextResponse.json({ error: "Messages must contain between 1 and 4,000 characters." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    const idempotencyKey = typeof payload?.idempotencyKey === "string" ? payload.idempotencyKey.trim() : "";
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) return response({ error: "A valid message request key is required. Please refresh and try again." }, 400);
+    const payloadHash = createHash("sha256").update(body).digest("hex");
     const registrationId = context.params.registrationId;
+    const sql = getDatabase();
+    const prior = await sql`SELECT message_id, sender_type, sender_ref, body, delivery_state, created_at, payload_hash
+      FROM application_messages
+      WHERE registration_id = ${registrationId} AND sender_type = 'admin' AND sender_ref = ${actor.adminId} AND idempotency_key = ${idempotencyKey}
+      LIMIT 1`;
+    if (prior.length) {
+      if (String(prior[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+      const { payload_hash: _hash, ...message } = prior[0];
+      return response({ ok: true, message, notification: message.delivery_state, duplicate: true });
+    }
     const ip = request.headers.get("x-real-ip") || "unknown";
     const [adminAttempts, ipAttempts] = await Promise.all([
       consumeMessageLimit("admin", actor.adminId + ":application:" + registrationId),
@@ -80,14 +93,25 @@ export async function POST(
     ]);
     if (adminAttempts > 30 || ipAttempts > 60) return response({ error: "Too many messages have been sent. Please wait before replying again." }, 429);
     const messageId = "appmsg_" + randomUUID();
-    const sql = getDatabase();
     const rows = await sql`INSERT INTO application_messages
-      (message_id, registration_id, sender_type, sender_ref, body, delivery_state)
-      SELECT ${messageId}, registration_id, 'admin', ${actor.adminId}, ${body}, 'pending'
+      (message_id, registration_id, sender_type, sender_ref, body, delivery_state, idempotency_key, payload_hash)
+      SELECT ${messageId}, registration_id, 'admin', ${actor.adminId}, ${body}, 'pending', ${idempotencyKey}, ${payloadHash}
       FROM application_submissions
       WHERE registration_id = ${registrationId}
+      ON CONFLICT DO NOTHING
       RETURNING message_id, sender_type, sender_ref, body, delivery_state, created_at`;
-    if (!rows.length) return NextResponse.json({ error: "Application not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+    if (!rows.length) {
+      const duplicate = await sql`SELECT message_id, sender_type, sender_ref, body, delivery_state, created_at, payload_hash
+        FROM application_messages
+        WHERE registration_id = ${registrationId} AND sender_type = 'admin' AND sender_ref = ${actor.adminId} AND idempotency_key = ${idempotencyKey}
+        LIMIT 1`;
+      if (duplicate.length) {
+        if (String(duplicate[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
+        const { payload_hash: _hash, ...message } = duplicate[0];
+        return response({ ok: true, message, notification: message.delivery_state, duplicate: true });
+      }
+      return NextResponse.json({ error: "Application not found." }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
+    }
     await appendAudit(actor, "application.message.created", "application", registrationId, { messageId });
     const applicants = await sql`SELECT applicant_name, applicant_email
       FROM application_submissions WHERE registration_id = ${registrationId} LIMIT 1`;
