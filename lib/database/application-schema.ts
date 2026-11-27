@@ -58,7 +58,7 @@ const statements = [
   `ALTER TABLE application_messages ADD COLUMN IF NOT EXISTS idempotency_key text`,
   `ALTER TABLE application_messages ADD COLUMN IF NOT EXISTS payload_hash char(64)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS application_messages_idempotency_idx
-    ON application_messages (registration_id, sender_type, sender_ref, idempotency_key)
+    ON application_messages (registration_id, sender_type, idempotency_key)
     WHERE idempotency_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS application_messages_thread_idx
     ON application_messages (registration_id, created_at, message_id)`,
@@ -202,7 +202,7 @@ const statements = [
   `ALTER TABLE client_enquiry_messages ADD COLUMN IF NOT EXISTS idempotency_key text`,
   `ALTER TABLE client_enquiry_messages ADD COLUMN IF NOT EXISTS payload_hash char(64)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS client_enquiry_messages_idempotency_idx
-    ON client_enquiry_messages (enquiry_id, sender_type, sender_ref, idempotency_key)
+    ON client_enquiry_messages (enquiry_id, sender_type, idempotency_key)
     WHERE idempotency_key IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS client_enquiry_messages_thread_idx
     ON client_enquiry_messages (enquiry_id, created_at, message_id)`,
