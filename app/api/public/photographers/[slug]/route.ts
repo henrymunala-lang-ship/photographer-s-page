@@ -74,7 +74,7 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     const requiredHeaders: Record<string, string[]> = {
       photographers: ["photographer_id", "public_name", "bio", "primary_location", "categories", "profile_image_url", "hero_image_url", "status", "publish_state"],
       gallery: ["photo_id", "photographer_id", "album_id", "title", "caption", "image_preview_url", "alt_text", "category", "sort_order", "featured", "publish_state"],
-      services: ["service_id", "photographer_id", "name", "description", "image_url", "publish_state"],
+      services: ["service_id", "photographer_id", "name", "description", "price_amount", "currency", "image_url", "publish_state"],
       serviceAreas: ["photographer_id", "place_name", "county_region", "country", "active"],
       albums: ["album_id", "photographer_id", "publish_state"]
     };
@@ -150,6 +150,8 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
         id: value(row, servicesTable.headers, "service_id"),
         name: value(row, servicesTable.headers, "name"),
         description: value(row, servicesTable.headers, "description"),
+        priceAmount: value(row, servicesTable.headers, "price_amount"),
+        currency: value(row, servicesTable.headers, "currency"),
         imageUrl: safeImageUrl(value(row, servicesTable.headers, "image_url"))
       }))
       .filter((item) => item.id && item.name);
