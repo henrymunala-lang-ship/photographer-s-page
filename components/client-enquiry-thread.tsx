@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, ChevronDown, ChevronUp, LoaderCircle } from "lucide-react";
 
 type Audience = "customer" | "photographer" | "owner";
@@ -15,6 +15,7 @@ export function ClientEnquiryThread({ enquiryId, audience, defaultOpen=false }:P
   const [sending,setSending]=useState(false);
   const [error,setError]=useState("");
   const [loaded,setLoaded]=useState(false);
+  const pendingMessageRequest = useRef<{ body:string; key:string } | null>(null);
   const endpoint = audience==="customer"
     ? "/api/public/enquiries/"+encodeURIComponent(enquiryId)+"/messages"
     : audience==="photographer"
@@ -40,10 +41,12 @@ export function ClientEnquiryThread({ enquiryId, audience, defaultOpen=false }:P
     const message=body.trim();
     if(!message||sending)return;
     setSending(true);setError("");
+    if(!pendingMessageRequest.current||pendingMessageRequest.current.body!==message)pendingMessageRequest.current={body:message,key:crypto.randomUUID()};
     try {
-      const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({body:message})});
+      const response=await fetch(endpoint,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({body:message,idempotencyKey:pendingMessageRequest.current.key})});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||"Message could not be sent.");
+      pendingMessageRequest.current=null;
       setBody("");
       await loadMessages();
     } catch (e) {
