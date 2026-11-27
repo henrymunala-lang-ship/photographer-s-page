@@ -12,6 +12,7 @@ type Photographer = {
   bio: string;
   primaryLocation: string;
   categories: string[];
+  serviceAreas: string[];
   profileImageUrl: string | null;
   heroImageUrl: string | null;
 };
@@ -51,7 +52,10 @@ export default function PhotographersPage() {
     const searchable = [photographer.name, photographer.bio, ...photographer.categories].join(" ").toLowerCase();
     const categoryMatch = type === "All styles" || photographer.categories.some((category) => category.toLowerCase().includes(type.toLowerCase().replace(/s$/, "")));
     const queryMatch = !query || searchable.includes(query.toLowerCase());
-    const locationMatch = !place || photographer.primaryLocation.toLowerCase().includes(place.toLowerCase());
+    const normalizedPlace = place.trim().toLowerCase();
+    const locationMatch = !normalizedPlace ||
+      photographer.primaryLocation.toLowerCase().includes(normalizedPlace) ||
+      photographer.serviceAreas.some((area) => area.toLowerCase().includes(normalizedPlace));
     return categoryMatch && queryMatch && locationMatch;
   }), [photographers, query, type, place]);
 
@@ -94,7 +98,8 @@ export default function PhotographersPage() {
               <p className="photographer-type">{category}</p><h2>{photographer.name}</h2>
               <p className="photographer-location"><MapPin size={13}/>{photographer.primaryLocation || "Location not specified"}</p>
               <p className="photographer-bio">{photographer.bio || "View this photographer's work and get in touch about your project."}</p>
-              <p className="service-areas">{photographer.categories.join(" · ")}</p>
+              <p className="service-areas">Styles · {photographer.categories.join(" · ") || "Photography"}</p>
+              {photographer.serviceAreas.length > 0 && <p className="service-areas">Also serving · {photographer.serviceAreas.join(" · ")}</p>}
               <div className="profile-card-bottom"><span>Lens & Light listing</span><Link href={`/photographers/${photographer.slug}`}>View profile <ArrowRight size={14}/></Link></div>
             </div>
           </article>;
