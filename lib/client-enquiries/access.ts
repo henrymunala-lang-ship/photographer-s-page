@@ -7,7 +7,9 @@ export function clientEnquiryCookieName(enquiryId: string) { return "ll_client_e
 const LINK_TTL_MS = 24 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-type EnquirySession = { tokenId: string; enquiryId: string; exp: number };\ntype PortalSession = { tokenId: string; emailHash: string; exp: number };\nexport const clientPortalCookieName = "ll_client_portal";
+type EnquirySession = { tokenId: string; enquiryId: string; exp: number };
+type PortalSession = { tokenId: string; emailHash: string; exp: number };
+export const clientPortalCookieName = "ll_client_portal";
 
 function secret() {
   const value = process.env.GOOGLE_OAUTH_STATE_SECRET ?? "";
