@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/database/neon";
 import { getApplicantSession } from "@/lib/applications/applicant-access";
@@ -63,6 +63,21 @@ export async function POST(request: NextRequest) {
     if (!body || body.length > 4000) {
       return NextResponse.json({ error: "Messages must contain between 1 and 4,000 characters." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     }
+    const idempotencyKey = typeof payload?.idempotencyKey === "string" ? payload.idempotencyKey.trim() : "";
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) {
+      return NextResponse.json({ error: "A valid message request key is required. Please refresh and try again." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const payloadHash = createHash("sha256").update(body).digest("hex");
+    const sql = getDatabase();
+    const prior = await sql`SELECT message_id, sender_type, body, delivery_state, created_at, payload_hash
+      FROM application_messages
+      WHERE registration_id = ${session.registrationId} AND sender_type = 'applicant' AND idempotency_key = ${idempotencyKey}
+      LIMIT 1`;
+    if (prior.length) {
+      if (String(prior[0].payload_hash) !== payloadHash) return NextResponse.json({ error: "This request key was already used for a different message." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
+      const { payload_hash: _hash, ...message } = prior[0];
+      return NextResponse.json({ ok: true, message, notification: message.delivery_state, duplicate: true }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const ip = request.headers.get("x-real-ip") || request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() || "unknown";
     const [registrationAttempts, ipAttempts] = await Promise.all([
       consumeMessageLimit("registration", session.registrationId),
@@ -73,7 +88,6 @@ export async function POST(request: NextRequest) {
         status: 429, headers: { "Cache-Control": "private, no-store" }
       });
     }
-    const sql = getDatabase();
     const messageId = "appmsg_" + randomUUID();
     const inserted = await sql`WITH eligible AS (
         UPDATE applicant_access_tokens
@@ -86,11 +100,21 @@ export async function POST(request: NextRequest) {
         RETURNING registration_id
       )
       INSERT INTO application_messages
-        (message_id, registration_id, sender_type, sender_ref, body, delivery_state)
-      SELECT ${messageId}, registration_id, 'applicant', 'applicant', ${body}, 'pending'
+        (message_id, registration_id, sender_type, sender_ref, body, delivery_state, idempotency_key, payload_hash)
+      SELECT ${messageId}, registration_id, 'applicant', 'applicant', ${body}, 'pending', ${idempotencyKey}, ${payloadHash}
       FROM eligible
+      ON CONFLICT DO NOTHING
       RETURNING message_id, sender_type, body, delivery_state, created_at`;
     if (!inserted.length) {
+      const duplicate = await sql`SELECT message_id, sender_type, body, delivery_state, created_at, payload_hash
+        FROM application_messages
+        WHERE registration_id = ${session.registrationId} AND sender_type = 'applicant' AND idempotency_key = ${idempotencyKey}
+        LIMIT 1`;
+      if (duplicate.length) {
+        if (String(duplicate[0].payload_hash) !== payloadHash) return NextResponse.json({ error: "This request key was already used for a different message." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
+        const { payload_hash: _hash, ...message } = duplicate[0];
+        return NextResponse.json({ ok: true, message, notification: message.delivery_state, duplicate: true }, { headers: { "Cache-Control": "private, no-store" } });
+      }
       return NextResponse.json({ error: "Please wait a moment before sending another message." }, {
         status: 429, headers: { "Cache-Control": "private, no-store" }
       });
