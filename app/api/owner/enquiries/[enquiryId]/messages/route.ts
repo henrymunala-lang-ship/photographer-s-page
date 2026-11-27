@@ -74,7 +74,7 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
       LIMIT 1`;
     if (prior.length) {
       if (String(prior[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
-      const { payload_hash: _hash, ...message } = prior[0];
+      const message = Object.fromEntries(Object.entries(prior[0]).filter(([key]) => key !== "payload_hash"));
       return response({ ok: true, message, notification: "already_recorded", duplicate: true });
     }
     const ip = request.headers.get("x-real-ip") || "unknown";
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest, context: { params: { enquiryId:
         LIMIT 1`;
       if (duplicate.length) {
         if (String(duplicate[0].payload_hash) !== payloadHash) return response({ error: "This request key was already used for a different message." }, 409);
-        const { payload_hash: _hash, ...message } = duplicate[0];
+        const message = Object.fromEntries(Object.entries(duplicate[0]).filter(([key]) => key !== "payload_hash"));
         return response({ ok: true, message, notification: "already_recorded", duplicate: true });
       }
       return response({ error: "The support message could not be saved." }, 503);
